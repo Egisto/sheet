@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
+import datetime
 
 # Cargar variables de entorno
 load_dotenv()
@@ -146,7 +147,7 @@ async def periodo_prueba(ctx, usuario: discord.Member):
         if roles_nuevos:
             await usuario.add_roles(*roles_nuevos)
         
-        # Crear embed de respuesta
+        # Crear embed de respuesta para el canal donde se ejecutó el comando
         embed = discord.Embed(
             title="✅ Período de Prueba Configurado",
             description=f"Se han configurado los roles de período de prueba para **{usuario.display_name}**",
@@ -179,10 +180,71 @@ async def periodo_prueba(ctx, usuario: discord.Member):
         
         await ctx.send(embed=embed)
         
+        # Enviar mensaje al canal "boosts"
+        await enviar_mensaje_periodo_prueba(ctx.guild, usuario, ctx.author)
+        
     except discord.Forbidden:
         await ctx.send("❌ No tengo permisos para asignar roles")
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
+
+async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
+    """Envía el mensaje de período de prueba al canal 'boosts'"""
+    try:
+        # Buscar el canal "boosts"
+        canal_boosts = discord.utils.get(guild.channels, name="boosts")
+        
+        if not canal_boosts:
+            print("⚠️ Canal 'boosts' no encontrado")
+            return
+        
+        # Calcular fechas
+        fecha_inicio = datetime.datetime.now()
+        fecha_caducidad = fecha_inicio + datetime.timedelta(days=7)
+        
+        # Crear timestamp para Discord
+        timestamp_caducidad = int(fecha_caducidad.timestamp())
+        
+        # Crear embed del período de prueba
+        embed_periodo = discord.Embed(
+            title="🔄 Período de Pruebas",
+            description=f"**Información acerca de este período de pruebas:**",
+            color=discord.Color.blue()
+        )
+        
+        # Información del obrero en pruebas
+        embed_periodo.add_field(
+            name=" Obrero en pruebas:",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            inline=False
+        )
+        
+        # Fechas
+        embed_periodo.add_field(
+            name="📅 Fechas:",
+            value=f"⌛ **Fecha de inicio:** {fecha_inicio.strftime('%d/%m/%Y a las %H:%M')}\n"
+                  f"⌛ **Fecha de caducidad:** <t:{timestamp_caducidad}:F> (<t:{timestamp_caducidad}:R>)",
+            inline=False
+        )
+        
+        # Objetivo
+        embed_periodo.add_field(
+            name="🎯 Objetivo:",
+            value="Para finalizar este período de pruebas deberás de completar **3 formularios de actividad** y un **curso** para superar tu período de pruebas correctamente.",
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_periodo.set_footer(text=f"Período iniciado por {autor_comando.display_name}")
+        embed_periodo.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal boosts
+        await canal_boosts.send(content=f"{usuario.mention}", embed=embed_periodo)
+        
+        print(f"✅ Mensaje de período de prueba enviado al canal 'boosts' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje al canal boosts: {str(e)}")
 
 @bot.command(name="quitar-rol", description="Quita un rol a un usuario")
 async def quitar_rol(ctx, usuario: discord.Member, rol: discord.Role):
