@@ -282,4 +282,5 @@ if __name__ == "__main__":
         print("❌ Error: No se encontró el token de Discord en las variables de entorno")
         exit(1)
     
+    print("🚀 Iniciando bot de Discord...")
     bot.run(token) 
