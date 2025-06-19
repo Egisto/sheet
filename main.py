@@ -10,18 +10,33 @@ load_dotenv()
 # Configuración del bot
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user} se ha conectado a Discord!')
+    print(f'✅ {bot.user} se ha conectado a Discord!')
+    print(f'📊 ID del bot: {bot.user.id}')
+    print(f'🏠 Servidores conectados: {len(bot.guilds)}')
+    
+    # Listar servidores
+    for guild in bot.guilds:
+        print(f'   - {guild.name} (ID: {guild.id})')
+        print(f'     Permisos: {guild.me.guild_permissions}')
+    
     try:
+        print('🔄 Sincronizando comandos...')
         synced = await bot.tree.sync()
-        print(f"Sincronizados {len(synced)} comandos")
+        print(f'✅ Sincronizados {len(synced)} comandos exitosamente')
+        
+        # Listar comandos sincronizados
+        for cmd in synced:
+            print(f'   - /{cmd.name}: {cmd.description}')
+            
     except Exception as e:
-        print(f"Error al sincronizar comandos: {e}")
+        print(f'❌ Error al sincronizar comandos: {e}')
+        print('💡 Verifica que el bot tenga permisos de "applications.commands"')
+        print('💡 Asegúrate de que el bot fue invitado con el scope "applications.commands"')
 
 class RolView(discord.ui.View):
     def __init__(self, usuario, roles_disponibles):
@@ -233,6 +248,22 @@ async def roles_usuario(interaction: discord.Interaction, usuario: discord.Membe
     embed.add_field(name="Total de roles", value=str(len(roles)), inline=True)
     
     await interaction.response.send_message(embed=embed)
+
+# Comando manual para sincronizar comandos
+@bot.command(name='sync')
+async def sync_commands(ctx):
+    """Sincroniza los comandos slash manualmente"""
+    if ctx.author.guild_permissions.administrator:
+        try:
+            print(f'🔄 Sincronización manual solicitada por {ctx.author}')
+            synced = await bot.tree.sync()
+            await ctx.send(f'✅ Sincronizados {len(synced)} comandos exitosamente!')
+            print(f'✅ Sincronización manual completada: {len(synced)} comandos')
+        except Exception as e:
+            await ctx.send(f'❌ Error al sincronizar: {e}')
+            print(f'❌ Error en sincronización manual: {e}')
+    else:
+        await ctx.send('❌ Solo los administradores pueden usar este comando')
 
 # Manejo de errores
 @bot.event
