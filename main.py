@@ -209,7 +209,7 @@ async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
         embed_periodo = discord.Embed(
             title="🔄 Período de Pruebas",
             description=f"**Información acerca de este período de pruebas:**",
-            color=discord.Color.blue()
+            color=discord.Color.yellow()
         )
         
         # Información del obrero en pruebas
@@ -324,6 +324,69 @@ async def on_command_error(ctx, error):
         await ctx.send("❌ Faltan argumentos requeridos para este comando")
     else:
         await ctx.send(f"❌ Error: {str(error)}")
+
+@bot.command(name="periodo-de-prueba", description="Asigna roles predefinidos de período de prueba a un usuario")
+async def periodo_prueba_prefix(ctx, usuario: discord.Member):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Buscar los roles predefinidos en el servidor
+        roles_a_asignar = []
+        roles_no_encontrados = []
+        
+        for nombre_rol in ROLES_PERIODO_PRUEBA:
+            rol = discord.utils.get(ctx.guild.roles, name=nombre_rol)
+            if rol:
+                # Verificar que el bot puede asignar este rol
+                if rol.position < ctx.guild.me.top_role.position and not rol.managed:
+                    roles_a_asignar.append(rol)
+                else:
+                    roles_no_encontrados.append(nombre_rol)
+            else:
+                roles_no_encontrados.append(nombre_rol)
+        
+        if not roles_a_asignar:
+            await ctx.send(f"❌ No se encontraron roles válidos para asignar. Roles configurados: {', '.join(ROLES_PERIODO_PRUEBA)}")
+            if roles_no_encontrados:
+                await ctx.send(f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}")
+            return
+        
+        # Verificar roles que ya tiene el usuario
+        roles_ya_asignados = []
+        roles_nuevos = []
+        
+        for rol in roles_a_asignar:
+            if rol in usuario.roles:
+                roles_ya_asignados.append(rol)
+            else:
+                roles_nuevos.append(rol)
+        
+        # Asignar roles nuevos
+        if roles_nuevos:
+            await usuario.add_roles(*roles_nuevos)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        if roles_nuevos:
+            roles_asignados_texto = ", ".join([rol.mention for rol in roles_nuevos])
+            await ctx.send(f"✅ Se han asignado los roles: {roles_asignados_texto} a {usuario.mention}")
+        else:
+            await ctx.send(f"ℹ️ {usuario.mention} ya tenía todos los roles configurados")
+        
+        # Enviar mensaje al canal "boosts"
+        await enviar_mensaje_periodo_prueba(ctx.guild, usuario, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para asignar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
 
 # Ejecutar el bot
 if __name__ == "__main__":
