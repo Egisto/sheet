@@ -13,6 +13,16 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# Configuración de roles predefinidos para período de prueba
+ROLES_PERIODO_PRUEBA = [
+    "Informador de canales",  # Rol principal de período de prueba
+    "Rol Dorado",  # Rol adicional
+    "Suscriptor oro", # Otro rol que se puede asignar
+    "Suscriptor plata",  # Rol principal de período de prueba
+    "Suscriptor bronce",  # Rol adicional
+    "Suscriptor"
+]
+
 @bot.event
 async def on_ready():
     print(f'✅ {bot.user} se ha conectado a Discord!')
@@ -25,10 +35,11 @@ async def on_ready():
         print(f'     Permisos: {guild.me.guild_permissions}')
     
     print('✅ Bot listo para usar comandos de prefijo:')
-    print('   - !periodo-de-prueba <usuario> [rol]')
+    print('   - !periodo-de-prueba <usuario>')
     print('   - !quitar-rol <usuario> <rol>')
     print('   - !roles-usuario <usuario>')
     print('   - !sync (solo administradores)')
+    print(f'   - Roles predefinidos: {", ".join(ROLES_PERIODO_PRUEBA)}')
 
 class RolView(discord.ui.View):
     def __init__(self, usuario, roles_disponibles):
@@ -87,8 +98,8 @@ class RolButton(discord.ui.Button):
                 ephemeral=True
             )
 
-@bot.command(name="periodo-de-prueba", description="Asigna un rol de período de prueba a un usuario")
-async def periodo_prueba(ctx, usuario: discord.Member, rol: discord.Role = None):
+@bot.command(name="periodo-de-prueba", description="Asigna roles predefinidos de período de prueba a un usuario")
+async def periodo_prueba(ctx, usuario: discord.Member):
     # Verificar permisos
     if not ctx.author.guild_permissions.manage_roles:
         await ctx.send("❌ No tienes permisos para gestionar roles")
@@ -100,50 +111,74 @@ async def periodo_prueba(ctx, usuario: discord.Member, rol: discord.Role = None)
         return
     
     try:
-        if rol:
-            # Si se especifica un rol, asignarlo directamente
+        # Buscar los roles predefinidos en el servidor
+        roles_a_asignar = []
+        roles_no_encontrados = []
+        
+        for nombre_rol in ROLES_PERIODO_PRUEBA:
+            rol = discord.utils.get(ctx.guild.roles, name=nombre_rol)
+            if rol:
+                # Verificar que el bot puede asignar este rol
+                if rol.position < ctx.guild.me.top_role.position and not rol.managed:
+                    roles_a_asignar.append(rol)
+                else:
+                    roles_no_encontrados.append(nombre_rol)
+            else:
+                roles_no_encontrados.append(nombre_rol)
+        
+        if not roles_a_asignar:
+            await ctx.send(f"❌ No se encontraron roles válidos para asignar. Roles configurados: {', '.join(ROLES_PERIODO_PRUEBA)}")
+            if roles_no_encontrados:
+                await ctx.send(f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}")
+            return
+        
+        # Verificar roles que ya tiene el usuario
+        roles_ya_asignados = []
+        roles_nuevos = []
+        
+        for rol in roles_a_asignar:
             if rol in usuario.roles:
-                await ctx.send(f"❌ **{usuario.display_name}** ya tiene el rol **{rol.name}**")
-                return
-            
-            await usuario.add_roles(rol)
-            
-            embed = discord.Embed(
-                title="✅ Rol Asignado Exitosamente",
-                description=f"Se ha asignado el rol **{rol.name}** a **{usuario.display_name}**",
-                color=discord.Color.green()
+                roles_ya_asignados.append(rol)
+            else:
+                roles_nuevos.append(rol)
+        
+        # Asignar roles nuevos
+        if roles_nuevos:
+            await usuario.add_roles(*roles_nuevos)
+        
+        # Crear embed de respuesta
+        embed = discord.Embed(
+            title="✅ Período de Prueba Configurado",
+            description=f"Se han configurado los roles de período de prueba para **{usuario.display_name}**",
+            color=discord.Color.green()
+        )
+        
+        embed.add_field(name="Usuario", value=usuario.mention, inline=True)
+        embed.add_field(name="Asignado por", value=ctx.author.mention, inline=True)
+        
+        if roles_nuevos:
+            embed.add_field(
+                name="✅ Roles Asignados", 
+                value=", ".join([rol.mention for rol in roles_nuevos]), 
+                inline=False
             )
-            embed.add_field(name="Usuario", value=usuario.mention, inline=True)
-            embed.add_field(name="Rol", value=rol.mention, inline=True)
-            embed.add_field(name="Asignado por", value=ctx.author.mention, inline=True)
-            
-            await ctx.send(embed=embed)
-            
-        else:
-            # Si no se especifica rol, mostrar opciones
-            # Obtener roles que el bot puede asignar (excluyendo @everyone y roles del bot)
-            roles_disponibles = [
-                r for r in ctx.guild.roles 
-                if r.name != "@everyone" 
-                and r.position < ctx.guild.me.top_role.position
-                and not r.managed
-            ]
-            
-            if not roles_disponibles:
-                await ctx.send("❌ No hay roles disponibles para asignar")
-                return
-            
-            embed = discord.Embed(
-                title="🎯 Selecciona un Rol",
-                description=f"Elige el rol que quieres asignar a **{usuario.display_name}**",
-                color=discord.Color.blue()
+        
+        if roles_ya_asignados:
+            embed.add_field(
+                name="ℹ️ Roles Ya Tenía", 
+                value=", ".join([rol.mention for rol in roles_ya_asignados]), 
+                inline=False
             )
-            embed.add_field(name="Usuario", value=usuario.mention, inline=True)
-            embed.add_field(name="Roles disponibles", value=f"{len(roles_disponibles)} roles", inline=True)
-            
-            view = RolView(usuario, roles_disponibles)
-            await ctx.send(embed=embed, view=view)
-            
+        
+        if roles_no_encontrados:
+            embed.add_field(
+                name="⚠️ Roles No Encontrados", 
+                value=", ".join(roles_no_encontrados), 
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+        
     except discord.Forbidden:
         await ctx.send("❌ No tengo permisos para asignar roles")
     except Exception as e:
