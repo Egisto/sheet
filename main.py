@@ -36,10 +36,11 @@ async def on_ready():
         print(f'     Permisos: {guild.me.guild_permissions}')
     
     print('✅ Bot listo para usar comandos de prefijo:')
-    print('   - !periodo-de-prueba <usuario>')
     print('   - !quitar-rol <usuario> <rol>')
     print('   - !roles-usuario <usuario>')
     print('   - !sync (solo administradores)')
+    print('✅ Comandos slash disponibles:')
+    print('   - /periodo-de-prueba <usuario>')
     print(f'   - Roles predefinidos: {", ".join(ROLES_PERIODO_PRUEBA)}')
 
 class RolView(discord.ui.View):
@@ -99,16 +100,23 @@ class RolButton(discord.ui.Button):
                 ephemeral=True
             )
 
-@bot.command(name="periodo-de-prueba", description="Asigna roles predefinidos de período de prueba a un usuario")
-async def periodo_prueba(ctx, usuario: discord.Member):
+@bot.tree.command(name="periodo-de-prueba", description="Asigna roles predefinidos de período de prueba a un usuario")
+@app_commands.describe(usuario="Usuario al que asignar el período de prueba")
+async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Member):
     # Verificar permisos
-    if not ctx.author.guild_permissions.manage_roles:
-        await ctx.send("❌ No tienes permisos para gestionar roles")
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
         return
     
     # Verificar que el bot tenga permisos
-    if not ctx.guild.me.guild_permissions.manage_roles:
-        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
         return
     
     try:
@@ -117,10 +125,10 @@ async def periodo_prueba(ctx, usuario: discord.Member):
         roles_no_encontrados = []
         
         for nombre_rol in ROLES_PERIODO_PRUEBA:
-            rol = discord.utils.get(ctx.guild.roles, name=nombre_rol)
+            rol = discord.utils.get(interaction.guild.roles, name=nombre_rol)
             if rol:
                 # Verificar que el bot puede asignar este rol
-                if rol.position < ctx.guild.me.top_role.position and not rol.managed:
+                if rol.position < interaction.guild.me.top_role.position and not rol.managed:
                     roles_a_asignar.append(rol)
                 else:
                     roles_no_encontrados.append(nombre_rol)
@@ -128,9 +136,15 @@ async def periodo_prueba(ctx, usuario: discord.Member):
                 roles_no_encontrados.append(nombre_rol)
         
         if not roles_a_asignar:
-            await ctx.send(f"❌ No se encontraron roles válidos para asignar. Roles configurados: {', '.join(ROLES_PERIODO_PRUEBA)}")
+            await interaction.response.send_message(
+                f"❌ No se encontraron roles válidos para asignar. Roles configurados: {', '.join(ROLES_PERIODO_PRUEBA)}",
+                ephemeral=True
+            )
             if roles_no_encontrados:
-                await ctx.send(f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}")
+                await interaction.followup.send(
+                    f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}",
+                    ephemeral=True
+                )
             return
         
         # Verificar roles que ya tiene el usuario
@@ -147,46 +161,32 @@ async def periodo_prueba(ctx, usuario: discord.Member):
         if roles_nuevos:
             await usuario.add_roles(*roles_nuevos)
         
-        # Crear embed de respuesta para el canal donde se ejecutó el comando
-        embed = discord.Embed(
-            title="✅ Período de Prueba Configurado",
-            description=f"Se han configurado los roles de período de prueba para **{usuario.display_name}**",
-            color=discord.Color.green()
-        )
-        
-        embed.add_field(name="Usuario", value=usuario.mention, inline=True)
-        embed.add_field(name="Asignado por", value=ctx.author.mention, inline=True)
-        
+        # Enviar confirmación ephemeral al usuario que ejecutó el comando
         if roles_nuevos:
-            embed.add_field(
-                name="✅ Roles Asignados", 
-                value=", ".join([rol.mention for rol in roles_nuevos]), 
-                inline=False
+            roles_asignados_texto = ", ".join([rol.mention for rol in roles_nuevos])
+            await interaction.response.send_message(
+                f"✅ Se han asignado los roles: {roles_asignados_texto} a {usuario.mention}",
+                ephemeral=True
             )
-        
-        if roles_ya_asignados:
-            embed.add_field(
-                name="ℹ️ Roles Ya Tenía", 
-                value=", ".join([rol.mention for rol in roles_ya_asignados]), 
-                inline=False
+        else:
+            await interaction.response.send_message(
+                f"ℹ️ {usuario.mention} ya tenía todos los roles configurados",
+                ephemeral=True
             )
-        
-        if roles_no_encontrados:
-            embed.add_field(
-                name="⚠️ Roles No Encontrados", 
-                value=", ".join(roles_no_encontrados), 
-                inline=False
-            )
-        
-        await ctx.send(embed=embed)
         
         # Enviar mensaje al canal "boosts"
-        await enviar_mensaje_periodo_prueba(ctx.guild, usuario, ctx.author)
+        await enviar_mensaje_periodo_prueba(interaction.guild, usuario, interaction.user)
         
     except discord.Forbidden:
-        await ctx.send("❌ No tengo permisos para asignar roles")
+        await interaction.response.send_message(
+            "❌ No tengo permisos para asignar roles",
+            ephemeral=True
+        )
     except Exception as e:
-        await ctx.send(f"❌ Error: {str(e)}")
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
 
 async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
     """Envía el mensaje de período de prueba al canal 'boosts'"""
@@ -214,7 +214,7 @@ async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
         
         # Información del obrero en pruebas
         embed_periodo.add_field(
-            name=" Obrero en pruebas:",
+            name="👷 Obrero en pruebas:",
             value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
             inline=False
         )
