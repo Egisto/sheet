@@ -24,19 +24,11 @@ async def on_ready():
         print(f'   - {guild.name} (ID: {guild.id})')
         print(f'     Permisos: {guild.me.guild_permissions}')
     
-    try:
-        print('🔄 Sincronizando comandos...')
-        synced = await bot.tree.sync()
-        print(f'✅ Sincronizados {len(synced)} comandos exitosamente')
-        
-        # Listar comandos sincronizados
-        for cmd in synced:
-            print(f'   - /{cmd.name}: {cmd.description}')
-            
-    except Exception as e:
-        print(f'❌ Error al sincronizar comandos: {e}')
-        print('💡 Verifica que el bot tenga permisos de "applications.commands"')
-        print('💡 Asegúrate de que el bot fue invitado con el scope "applications.commands"')
+    print('✅ Bot listo para usar comandos de prefijo:')
+    print('   - !periodo-de-prueba <usuario> [rol]')
+    print('   - !quitar-rol <usuario> <rol>')
+    print('   - !roles-usuario <usuario>')
+    print('   - !sync (solo administradores)')
 
 class RolView(discord.ui.View):
     def __init__(self, usuario, roles_disponibles):
@@ -95,36 +87,23 @@ class RolButton(discord.ui.Button):
                 ephemeral=True
             )
 
-@bot.tree.command(name="periodo-de-prueba", description="Asigna un rol de período de prueba a un usuario")
-@app_commands.describe(
-    usuario="El usuario al que quieres asignar el rol",
-    rol="El rol específico que quieres asignar (opcional)"
-)
-async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Member, rol: discord.Role = None):
+@bot.command(name="periodo-de-prueba", description="Asigna un rol de período de prueba a un usuario")
+async def periodo_prueba(ctx, usuario: discord.Member, rol: discord.Role = None):
     # Verificar permisos
-    if not interaction.user.guild_permissions.manage_roles:
-        await interaction.response.send_message(
-            "❌ No tienes permisos para gestionar roles",
-            ephemeral=True
-        )
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
         return
     
     # Verificar que el bot tenga permisos
-    if not interaction.guild.me.guild_permissions.manage_roles:
-        await interaction.response.send_message(
-            "❌ No tengo permisos para gestionar roles en este servidor",
-            ephemeral=True
-        )
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
         return
     
     try:
         if rol:
             # Si se especifica un rol, asignarlo directamente
             if rol in usuario.roles:
-                await interaction.response.send_message(
-                    f"❌ **{usuario.display_name}** ya tiene el rol **{rol.name}**",
-                    ephemeral=True
-                )
+                await ctx.send(f"❌ **{usuario.display_name}** ya tiene el rol **{rol.name}**")
                 return
             
             await usuario.add_roles(rol)
@@ -136,25 +115,22 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
             )
             embed.add_field(name="Usuario", value=usuario.mention, inline=True)
             embed.add_field(name="Rol", value=rol.mention, inline=True)
-            embed.add_field(name="Asignado por", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Asignado por", value=ctx.author.mention, inline=True)
             
-            await interaction.response.send_message(embed=embed)
+            await ctx.send(embed=embed)
             
         else:
             # Si no se especifica rol, mostrar opciones
             # Obtener roles que el bot puede asignar (excluyendo @everyone y roles del bot)
             roles_disponibles = [
-                r for r in interaction.guild.roles 
+                r for r in ctx.guild.roles 
                 if r.name != "@everyone" 
-                and r.position < interaction.guild.me.top_role.position
+                and r.position < ctx.guild.me.top_role.position
                 and not r.managed
             ]
             
             if not roles_disponibles:
-                await interaction.response.send_message(
-                    "❌ No hay roles disponibles para asignar",
-                    ephemeral=True
-                )
+                await ctx.send("❌ No hay roles disponibles para asignar")
                 return
             
             embed = discord.Embed(
@@ -166,39 +142,23 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
             embed.add_field(name="Roles disponibles", value=f"{len(roles_disponibles)} roles", inline=True)
             
             view = RolView(usuario, roles_disponibles)
-            await interaction.response.send_message(embed=embed, view=view)
+            await ctx.send(embed=embed, view=view)
             
     except discord.Forbidden:
-        await interaction.response.send_message(
-            "❌ No tengo permisos para asignar roles",
-            ephemeral=True
-        )
+        await ctx.send("❌ No tengo permisos para asignar roles")
     except Exception as e:
-        await interaction.response.send_message(
-            f"❌ Error: {str(e)}",
-            ephemeral=True
-        )
+        await ctx.send(f"❌ Error: {str(e)}")
 
-@bot.tree.command(name="quitar-rol", description="Quita un rol a un usuario")
-@app_commands.describe(
-    usuario="El usuario al que quieres quitar el rol",
-    rol="El rol que quieres quitar"
-)
-async def quitar_rol(interaction: discord.Interaction, usuario: discord.Member, rol: discord.Role):
+@bot.command(name="quitar-rol", description="Quita un rol a un usuario")
+async def quitar_rol(ctx, usuario: discord.Member, rol: discord.Role):
     # Verificar permisos
-    if not interaction.user.guild_permissions.manage_roles:
-        await interaction.response.send_message(
-            "❌ No tienes permisos para gestionar roles",
-            ephemeral=True
-        )
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
         return
     
     try:
         if rol not in usuario.roles:
-            await interaction.response.send_message(
-                f"❌ **{usuario.display_name}** no tiene el rol **{rol.name}**",
-                ephemeral=True
-            )
+            await ctx.send(f"❌ **{usuario.display_name}** no tiene el rol **{rol.name}**")
             return
         
         await usuario.remove_roles(rol)
@@ -210,24 +170,17 @@ async def quitar_rol(interaction: discord.Interaction, usuario: discord.Member, 
         )
         embed.add_field(name="Usuario", value=usuario.mention, inline=True)
         embed.add_field(name="Rol", value=rol.mention, inline=True)
-        embed.add_field(name="Removido por", value=interaction.user.mention, inline=True)
+        embed.add_field(name="Removido por", value=ctx.author.mention, inline=True)
         
-        await interaction.response.send_message(embed=embed)
+        await ctx.send(embed=embed)
         
     except discord.Forbidden:
-        await interaction.response.send_message(
-            "❌ No tengo permisos para quitar roles",
-            ephemeral=True
-        )
+        await ctx.send("❌ No tengo permisos para quitar roles")
     except Exception as e:
-        await interaction.response.send_message(
-            f"❌ Error: {str(e)}",
-            ephemeral=True
-        )
+        await ctx.send(f"❌ Error: {str(e)}")
 
-@bot.tree.command(name="roles-usuario", description="Muestra todos los roles de un usuario")
-@app_commands.describe(usuario="El usuario cuyos roles quieres ver")
-async def roles_usuario(interaction: discord.Interaction, usuario: discord.Member):
+@bot.command(name="roles-usuario", description="Muestra todos los roles de un usuario")
+async def roles_usuario(ctx, usuario: discord.Member):
     roles = [rol.mention for rol in usuario.roles if rol.name != "@everyone"]
     
     if not roles:
@@ -247,7 +200,7 @@ async def roles_usuario(interaction: discord.Interaction, usuario: discord.Membe
     embed.add_field(name="Usuario", value=usuario.mention, inline=True)
     embed.add_field(name="Total de roles", value=str(len(roles)), inline=True)
     
-    await interaction.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
 
 # Comando manual para sincronizar comandos
 @bot.command(name='sync')
