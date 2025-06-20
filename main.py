@@ -140,15 +140,11 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
                 roles_no_encontrados.append(nombre_rol)
         
         if not roles_a_asignar:
-            await interaction.response.send_message(
-                f"❌ No se encontraron roles válidos para asignar. Roles configurados: {', '.join(ROLES_PERIODO_PRUEBA)}",
-                ephemeral=True
-            )
+            mensaje_error = f"❌ No se encontraron roles válidos para asignar. Roles configurados: {', '.join(ROLES_PERIODO_PRUEBA)}"
             if roles_no_encontrados:
-                await interaction.followup.send(
-                    f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}",
-                    ephemeral=True
-                )
+                mensaje_error += f"\n⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}"
+            
+            await interaction.response.send_message(mensaje_error, ephemeral=True)
             return
         
         # Verificar roles que ya tiene el usuario
@@ -178,7 +174,7 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
                 ephemeral=True
             )
         
-        # Enviar mensaje al canal "boosts"
+        # Enviar mensaje al canal "boosts" después de la respuesta
         await enviar_mensaje_periodo_prueba(interaction.guild, usuario, interaction.user)
         
     except discord.Forbidden:
