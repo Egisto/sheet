@@ -190,10 +190,10 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
         )
 
 async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
-    """Envía el mensaje de período de prueba al canal 'boosts'"""
+    """Envía el mensaje de período de prueba al canal '↪📰》𝗣eriodo-de-𝗣rueba'"""
     try:
         # Buscar el canal "boosts"
-        canal_boosts = discord.utils.get(guild.channels, name="boosts")
+        canal_boosts = discord.utils.get(guild.channels, name="↪📰》𝗣eriodo-de-𝗣rueba")
         
         if not canal_boosts:
             print("⚠️ Canal 'boosts' no encontrado")
@@ -453,13 +453,13 @@ async def asignar_placa(interaction: discord.Interaction, usuario: discord.Membe
         )
 
 async def enviar_mensaje_asignacion_placa(guild, usuario, numero_placa, autor_comando):
-    """Envía el mensaje de asignación de placa al canal 'noticias-random'"""
+    """Envía el mensaje de asignación de placa al canal '↪🆔》𝗣lacas-𝗔signadas'"""
     try:
-        # Buscar el canal "noticias-random"
-        canal_noticias = discord.utils.get(guild.channels, name="noticias-random")
+        # Buscar el canal "↪🆔》𝗣lacas-𝗔signadas"
+        canal_noticias = discord.utils.get(guild.channels, name="↪🆔》𝗣lacas-𝗔signadas")
         
         if not canal_noticias:
-            print("⚠️ Canal 'noticias-random' no encontrado")
+            print("⚠️ Canal '↪🆔》𝗣lacas-𝗔signadas' no encontrado")
             return
         
         # Crear embed de asignación de placa
