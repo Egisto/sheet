@@ -392,7 +392,7 @@ async def periodo_prueba_prefix(ctx, usuario: discord.Member):
 @bot.tree.command(name="asignar-placa", description="Asigna un número de placa a un usuario y cambia su nickname")
 @app_commands.describe(
     usuario="Usuario al que asignar la placa",
-    numero_placa="Número de placa a asignar"
+    numero_placa="Número de placa a asignar (1-99)"
 )
 async def asignar_placa(interaction: discord.Interaction, usuario: discord.Member, numero_placa: int):
     # Verificar permisos
@@ -411,30 +411,30 @@ async def asignar_placa(interaction: discord.Interaction, usuario: discord.Membe
         )
         return
     
-    # Verificar que el número de placa sea válido
-    if numero_placa <= 0 or numero_placa > 9999:
+    # Verificar que el número de placa sea válido (máximo 2 dígitos)
+    if numero_placa <= 0 or numero_placa > 99:
         await interaction.response.send_message(
-            "❌ El número de placa debe estar entre 1 y 9999",
+            "❌ El número de placa debe estar entre 1 y 99",
             ephemeral=True
         )
         return
     
     try:
         # Crear el nuevo nickname
-        nuevo_nickname = f"NVI-{numero_placa:04d} | {usuario.name}"
+        nuevo_nickname = f"NVI-{numero_placa} | {usuario.name}"
         
         # Verificar si el nickname es muy largo (límite de Discord: 32 caracteres)
         if len(nuevo_nickname) > 32:
             # Truncar el nombre si es necesario
-            nombre_truncado = usuario.name[:32 - len(f"NVI-{numero_placa:04d} | ")]
-            nuevo_nickname = f"NVI-{numero_placa:04d} | {nombre_truncado}"
+            nombre_truncado = usuario.name[:32 - len(f"NVI-{numero_placa} | ")]
+            nuevo_nickname = f"NVI-{numero_placa} | {nombre_truncado}"
         
         # Cambiar el nickname del usuario
         await usuario.edit(nick=nuevo_nickname)
         
-        # Enviar confirmación al usuario que ejecutó el comando
+        # Enviar confirmación solo al usuario que ejecutó el comando (ephemeral)
         await interaction.response.send_message(
-            f"✅ Se ha asignado la placa **NVI-{numero_placa:04d}** a {usuario.mention}",
+            f"✅ Se ha asignado la placa **NVI-{numero_placa}** a {usuario.mention}",
             ephemeral=True
         )
         
@@ -507,26 +507,26 @@ async def asignar_placa_prefix(ctx, usuario: discord.Member, numero_placa: int):
         await ctx.send("❌ No tengo permisos para gestionar nicknames en este servidor")
         return
     
-    # Verificar que el número de placa sea válido
-    if numero_placa <= 0 or numero_placa > 9999:
-        await ctx.send("❌ El número de placa debe estar entre 1 y 9999")
+    # Verificar que el número de placa sea válido (máximo 2 dígitos)
+    if numero_placa <= 0 or numero_placa > 99:
+        await ctx.send("❌ El número de placa debe estar entre 1 y 99")
         return
     
     try:
         # Crear el nuevo nickname
-        nuevo_nickname = f"NVI-{numero_placa:04d} | {usuario.name}"
+        nuevo_nickname = f"NVI-{numero_placa} | {usuario.name}"
         
         # Verificar si el nickname es muy largo (límite de Discord: 32 caracteres)
         if len(nuevo_nickname) > 32:
             # Truncar el nombre si es necesario
-            nombre_truncado = usuario.name[:32 - len(f"NVI-{numero_placa:04d} | ")]
-            nuevo_nickname = f"NVI-{numero_placa:04d} | {nombre_truncado}"
+            nombre_truncado = usuario.name[:32 - len(f"NVI-{numero_placa} | ")]
+            nuevo_nickname = f"NVI-{numero_placa} | {nombre_truncado}"
         
         # Cambiar el nickname del usuario
         await usuario.edit(nick=nuevo_nickname)
         
-        # Enviar confirmación al canal donde se ejecutó el comando
-        await ctx.send(f"✅ Se ha asignado la placa **NVI-{numero_placa:04d}** a {usuario.mention}")
+        # Enviar confirmación solo al usuario que ejecutó el comando (ephemeral para slash, público para prefijo)
+        await ctx.send(f"✅ Se ha asignado la placa **NVI-{numero_placa}** a {usuario.mention}")
         
         # Enviar mensaje al canal "noticias-random"
         await enviar_mensaje_asignacion_placa(ctx.guild, usuario, numero_placa, ctx.author)
