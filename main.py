@@ -438,7 +438,7 @@ async def asignar_placa(interaction: discord.Interaction, usuario: discord.Membe
             ephemeral=True
         )
         
-        # Enviar mensaje al canal "bienvenidas"
+        # Enviar mensaje al canal "noticias-random"
         await enviar_mensaje_asignacion_placa(interaction.guild, usuario, numero_placa, interaction.user)
         
     except discord.Forbidden:
@@ -453,13 +453,13 @@ async def asignar_placa(interaction: discord.Interaction, usuario: discord.Membe
         )
 
 async def enviar_mensaje_asignacion_placa(guild, usuario, numero_placa, autor_comando):
-    """Envía el mensaje de asignación de placa al canal 'bienvenidas'"""
+    """Envía el mensaje de asignación de placa al canal 'noticias-random'"""
     try:
-        # Buscar el canal "bienvenidas"
-        canal_bienvenidas = discord.utils.get(guild.channels, name="bienvenidas")
+        # Buscar el canal "noticias-random"
+        canal_noticias = discord.utils.get(guild.channels, name="noticias-random")
         
-        if not canal_bienvenidas:
-            print("⚠️ Canal 'bienvenidas' no encontrado")
+        if not canal_noticias:
+            print("⚠️ Canal 'noticias-random' no encontrado")
             return
         
         # Crear embed de asignación de placa
@@ -472,7 +472,7 @@ async def enviar_mensaje_asignacion_placa(guild, usuario, numero_placa, autor_co
         # Agregar el número de placa
         embed_placa.add_field(
             name="🆔 Número de Placa",
-            value=f"**NVI-{numero_placa:04d}**",
+            value=f"**NVI-{numero_placa}**",
             inline=False
         )
         
@@ -487,13 +487,13 @@ async def enviar_mensaje_asignacion_placa(guild, usuario, numero_placa, autor_co
         embed_placa.set_footer(text=f"Placa asignada por {autor_comando.display_name}")
         embed_placa.set_thumbnail(url=usuario.display_avatar.url)
         
-        # Enviar mensaje al canal bienvenidas
-        await canal_bienvenidas.send(content=f"{usuario.mention}", embed=embed_placa)
+        # Enviar mensaje al canal noticias-random
+        await canal_noticias.send(content=f"{usuario.mention}", embed=embed_placa)
         
-        print(f"✅ Mensaje de asignación de placa enviado al canal 'bienvenidas' para {usuario.display_name}")
+        print(f"✅ Mensaje de asignación de placa enviado al canal 'noticias-random' para {usuario.display_name}")
         
     except Exception as e:
-        print(f"❌ Error al enviar mensaje al canal bienvenidas: {str(e)}")
+        print(f"❌ Error al enviar mensaje al canal noticias-random: {str(e)}")
 
 @bot.command(name="asignar-placa", description="Asigna un número de placa a un usuario y cambia su nickname")
 async def asignar_placa_prefix(ctx, usuario: discord.Member, numero_placa: int):
@@ -528,7 +528,7 @@ async def asignar_placa_prefix(ctx, usuario: discord.Member, numero_placa: int):
         # Enviar confirmación al canal donde se ejecutó el comando
         await ctx.send(f"✅ Se ha asignado la placa **NVI-{numero_placa:04d}** a {usuario.mention}")
         
-        # Enviar mensaje al canal "bienvenidas"
+        # Enviar mensaje al canal "noticias-random"
         await enviar_mensaje_asignacion_placa(ctx.guild, usuario, numero_placa, ctx.author)
         
     except discord.Forbidden:
