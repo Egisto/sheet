@@ -531,7 +531,7 @@ Antes de empezar, asegúrate de:
 :blue_book: Completar el curso obligatorio
 :pencil: En tus primeros 7 días, debes enviar 3 formularios para pasar el periodo de prueba.
 
-¡Buena suerte y cualquier duda no dudéis en preguntarme! :SEIM:"""
+¡Buena suerte y cualquier duda no dudéis en preguntarme!"""
         
         # Enviar mensaje al canal de empleados
         await canal_empleados.send(content=mensaje_bienvenida)
