@@ -42,6 +42,7 @@ async def on_ready():
     print('✅ Comandos slash disponibles:')
     print('   - /periodo-de-prueba <usuario>')
     print(f'   - Roles predefinidos: {", ".join(ROLES_PERIODO_PRUEBA)}')
+    print('✅ Nuevo comando: /asignar-placa <usuario> <número_placa>')
 
 class RolView(discord.ui.View):
     def __init__(self, usuario, roles_disponibles):
@@ -387,6 +388,112 @@ async def periodo_prueba_prefix(ctx, usuario: discord.Member):
         await ctx.send("❌ No tengo permisos para asignar roles")
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
+
+@bot.tree.command(name="asignar-placa", description="Asigna un número de placa a un usuario y cambia su nickname")
+@app_commands.describe(
+    usuario="Usuario al que asignar la placa",
+    numero_placa="Número de placa a asignar"
+)
+async def asignar_placa(interaction: discord.Interaction, usuario: discord.Member, numero_placa: int):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_nicknames:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar nicknames",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_nicknames:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar nicknames en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el número de placa sea válido
+    if numero_placa <= 0 or numero_placa > 9999:
+        await interaction.response.send_message(
+            "❌ El número de placa debe estar entre 1 y 9999",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Crear el nuevo nickname
+        nuevo_nickname = f"NVI-{numero_placa:04d} | {usuario.name}"
+        
+        # Verificar si el nickname es muy largo (límite de Discord: 32 caracteres)
+        if len(nuevo_nickname) > 32:
+            # Truncar el nombre si es necesario
+            nombre_truncado = usuario.name[:32 - len(f"NVI-{numero_placa:04d} | ")]
+            nuevo_nickname = f"NVI-{numero_placa:04d} | {nombre_truncado}"
+        
+        # Cambiar el nickname del usuario
+        await usuario.edit(nick=nuevo_nickname)
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha asignado la placa **NVI-{numero_placa:04d}** a {usuario.mention}",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal "bienvenidas"
+        await enviar_mensaje_asignacion_placa(interaction.guild, usuario, numero_placa, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para cambiar el nickname de este usuario",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+async def enviar_mensaje_asignacion_placa(guild, usuario, numero_placa, autor_comando):
+    """Envía el mensaje de asignación de placa al canal 'bienvenidas'"""
+    try:
+        # Buscar el canal "bienvenidas"
+        canal_bienvenidas = discord.utils.get(guild.channels, name="bienvenidas")
+        
+        if not canal_bienvenidas:
+            print("⚠️ Canal 'bienvenidas' no encontrado")
+            return
+        
+        # Crear embed de asignación de placa
+        embed_placa = discord.Embed(
+            title="🛡️ Asignación de Placa",
+            description=f"Enhorabuena {usuario.mention}, tu placa a partir de ahora será:",
+            color=discord.Color.gold()
+        )
+        
+        # Agregar el número de placa
+        embed_placa.add_field(
+            name="🆔 Número de Placa",
+            value=f"**NVI-{numero_placa:04d}**",
+            inline=False
+        )
+        
+        # Agregar instrucción
+        embed_placa.add_field(
+            name="📋 Instrucción",
+            value="La deberás de utilizar en todo momento que estés en servicio.",
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_placa.set_footer(text=f"Placa asignada por {autor_comando.display_name}")
+        embed_placa.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal bienvenidas
+        await canal_bienvenidas.send(content=f"{usuario.mention}", embed=embed_placa)
+        
+        print(f"✅ Mensaje de asignación de placa enviado al canal 'bienvenidas' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje al canal bienvenidas: {str(e)}")
 
 # Ejecutar el bot
 if __name__ == "__main__":
