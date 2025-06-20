@@ -161,21 +161,21 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
         if roles_nuevos:
             await usuario.add_roles(*roles_nuevos)
         
-        # Enviar confirmación ephemeral al usuario que ejecutó el comando
+        # Preparar mensaje de confirmación
         if roles_nuevos:
             roles_asignados_texto = ", ".join([rol.mention for rol in roles_nuevos])
-            await interaction.response.send_message(
-                f"✅ Se han asignado los roles: {roles_asignados_texto} a {usuario.mention}",
-                ephemeral=True
-            )
+            mensaje_confirmacion = f"✅ Se han asignado los roles: {roles_asignados_texto} a {usuario.mention}"
         else:
-            await interaction.response.send_message(
-                f"ℹ️ {usuario.mention} ya tenía todos los roles configurados",
-                ephemeral=True
-            )
+            mensaje_confirmacion = f"ℹ️ {usuario.mention} ya tenía todos los roles configurados"
         
-        # Enviar mensaje al canal "boosts" después de la respuesta
-        await enviar_mensaje_periodo_prueba(interaction.guild, usuario, interaction.user)
+        # Enviar confirmación ephemeral al usuario que ejecutó el comando
+        await interaction.response.send_message(mensaje_confirmacion, ephemeral=True)
+        
+        # Enviar mensaje al canal después de la respuesta
+        try:
+            await enviar_mensaje_periodo_prueba(interaction.guild, usuario, interaction.user)
+        except Exception as e:
+            print(f"❌ Error al enviar mensaje al canal: {str(e)}")
         
     except discord.Forbidden:
         await interaction.response.send_message(
