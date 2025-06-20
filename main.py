@@ -213,7 +213,7 @@ async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
         embed_periodo = discord.Embed(
             title="🔄 Período de Pruebas",
             description=f"**Información acerca de este período de pruebas:**",
-            color=discord.Color.yellow()
+            color=discord.Color.gold()
         )
         
         # Información del obrero en pruebas
@@ -493,10 +493,43 @@ async def enviar_mensaje_asignacion_placa(guild, usuario, numero_placa, autor_co
         # Enviar mensaje al canal noticias-random
         await canal_noticias.send(content=f"{usuario.mention}", embed=embed_placa)
         
-        print(f"✅ Mensaje de asignación de placa enviado al canal 'noticias-random' para {usuario.display_name}")
+        print(f"✅ Mensaje de asignación de placa enviado al canal '↪🆔》𝗣lacas-𝗔signadas' para {usuario.display_name}")
+        
+        # Enviar mensaje de bienvenida al canal de empleados
+        await enviar_mensaje_bienvenida_empleados(guild, usuario)
         
     except Exception as e:
         print(f"❌ Error al enviar mensaje al canal noticias-random: {str(e)}")
+
+async def enviar_mensaje_bienvenida_empleados(guild, usuario):
+    """Envía el mensaje de bienvenida al canal '↪🧥》𝗖hat-𝗘mpleados'"""
+    try:
+        # Buscar el canal "↪🧥》𝗖hat-𝗘mpleados"
+        canal_empleados = discord.utils.get(guild.channels, name="↪🧥》𝗖hat-𝗘mpleados")
+        
+        if not canal_empleados:
+            print("⚠️ Canal '↪🧥》𝗖hat-𝗘mpleados' no encontrado")
+            return
+        
+        # Crear el mensaje de bienvenida
+        mensaje_bienvenida = f"""{usuario.mention} :wave: ¡Bienvenida/o a MTMS! 
+
+Antes de empezar, asegúrate de:
+
+:credit_card:  Sacar tu Licencia B y subirla a #↪💳》𝗟icencias 
+:movie_camera: Ver los tutoriales y la guía  #↪🥏》𝗧utoriales-𝗦ugerencias   #↪》𝙂uía 
+:blue_book: Completar el curso obligatorio
+:pencil: En tus primeros 7 días, debes enviar 3 formularios para pasar el periodo de prueba.
+
+¡Buena suerte y cualquier duda no dudéis en preguntarme! :SEIM:"""
+        
+        # Enviar mensaje al canal de empleados
+        await canal_empleados.send(content=mensaje_bienvenida)
+        
+        print(f"✅ Mensaje de bienvenida enviado al canal '↪🧥》𝗖hat-𝗘mpleados' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de bienvenida al canal de empleados: {str(e)}")
 
 @bot.command(name="asignar-placa", description="Asigna un número de placa a un usuario y cambia su nickname")
 async def asignar_placa_prefix(ctx, usuario: discord.Member, numero_placa: int):
