@@ -16,12 +16,15 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Configuración de roles predefinidos para período de prueba
 ROLES_PERIODO_PRUEBA = [
-    "Informador de canales",  # Rol principal de período de prueba
-    "Rol Dorado",  # Rol adicional
-    "Suscriptor oro", # Otro rol que se puede asignar
-    "Suscriptor plata",  # Rol principal de período de prueba
-    "Suscriptor bronce",  # Rol adicional
-    "Suscriptor"
+    "═══════Medallas═══════",  # Rol principal de período de prueba
+    "═══════Personal═══════",  # Rol adicional
+    "🔖〴Nuevo Ingreso〴", # Otro rol que se puede asignar
+    "👷〴Personal MTMS〴",  # Rol principal de período de prueba
+    "═══════Departamento de Obras═══════",  # Rol adicional
+    "👷〴 Obrero en Pruebas",
+    "═══════Sanciones═══════",  # Rol principal de período de prueba
+    "═══════Otros═══════",  # Rol adicional
+    "Curso Aprendiz"
 ]
 
 @bot.event
