@@ -511,13 +511,23 @@ async def enviar_mensaje_bienvenida_empleados(guild, usuario):
             print("⚠️ Canal '↪🧥》𝗖hat-𝗘mpleados' no encontrado")
             return
         
-        # Crear el mensaje de bienvenida
+        # Buscar los canales mencionados para crear enlaces
+        canal_licencias = discord.utils.get(guild.channels, name="↪💳》𝗟icencias")
+        canal_tutoriales = discord.utils.get(guild.channels, name="↪🥏》𝗧utoriales-𝗦ugerencias")
+        canal_guia = discord.utils.get(guild.channels, name="↪📚》𝙂uía")
+        
+        # Crear enlaces a los canales (si existen)
+        enlace_licencias = f"<#{canal_licencias.id}>" if canal_licencias else "#↪💳》𝗟icencias"
+        enlace_tutoriales = f"<#{canal_tutoriales.id}>" if canal_tutoriales else "#↪🥏》𝗧utoriales-𝗦ugerencias"
+        enlace_guia = f"<#{canal_guia.id}>" if canal_guia else "#↪📚》𝙂uía"
+        
+        # Crear el mensaje de bienvenida con enlaces
         mensaje_bienvenida = f"""{usuario.mention} :wave: ¡Bienvenida/o a MTMS! 
 
 Antes de empezar, asegúrate de:
 
-:credit_card:  Sacar tu Licencia B y subirla a #↪💳》𝗟icencias 
-:movie_camera: Ver los tutoriales y la guía  #↪🥏》𝗧utoriales-𝗦ugerencias   #↪》𝙂uía 
+:credit_card:  Sacar tu Licencia B y subirla a {enlace_licencias}
+:movie_camera: Ver los tutoriales y la guía  {enlace_tutoriales}   {enlace_guia}
 :blue_book: Completar el curso obligatorio
 :pencil: En tus primeros 7 días, debes enviar 3 formularios para pasar el periodo de prueba.
 
