@@ -659,7 +659,7 @@ async def enviar_mensaje_ascenso(guild, usuario, rango, motivo, autor_comando):
         embed_ascenso = discord.Embed(
             title="🎉 ¡Enhorabuena por tu ascenso!",
             description=f"**Información acerca de este ascenso:**",
-            color=discord.Color.green()
+            color=discord.Color.gold()
         )
         
         # Información del obrero ascendido
