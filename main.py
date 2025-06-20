@@ -495,6 +495,47 @@ async def enviar_mensaje_asignacion_placa(guild, usuario, numero_placa, autor_co
     except Exception as e:
         print(f"❌ Error al enviar mensaje al canal bienvenidas: {str(e)}")
 
+@bot.command(name="asignar-placa", description="Asigna un número de placa a un usuario y cambia su nickname")
+async def asignar_placa_prefix(ctx, usuario: discord.Member, numero_placa: int):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_nicknames:
+        await ctx.send("❌ No tienes permisos para gestionar nicknames")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_nicknames:
+        await ctx.send("❌ No tengo permisos para gestionar nicknames en este servidor")
+        return
+    
+    # Verificar que el número de placa sea válido
+    if numero_placa <= 0 or numero_placa > 9999:
+        await ctx.send("❌ El número de placa debe estar entre 1 y 9999")
+        return
+    
+    try:
+        # Crear el nuevo nickname
+        nuevo_nickname = f"NVI-{numero_placa:04d} | {usuario.name}"
+        
+        # Verificar si el nickname es muy largo (límite de Discord: 32 caracteres)
+        if len(nuevo_nickname) > 32:
+            # Truncar el nombre si es necesario
+            nombre_truncado = usuario.name[:32 - len(f"NVI-{numero_placa:04d} | ")]
+            nuevo_nickname = f"NVI-{numero_placa:04d} | {nombre_truncado}"
+        
+        # Cambiar el nickname del usuario
+        await usuario.edit(nick=nuevo_nickname)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha asignado la placa **NVI-{numero_placa:04d}** a {usuario.mention}")
+        
+        # Enviar mensaje al canal "bienvenidas"
+        await enviar_mensaje_asignacion_placa(ctx.guild, usuario, numero_placa, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para cambiar el nickname de este usuario")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
 # Ejecutar el bot
 if __name__ == "__main__":
     token = os.getenv('DISCORD_TOKEN')
