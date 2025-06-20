@@ -1064,6 +1064,165 @@ async def despido_prefix(ctx, usuario: discord.Member, *, motivo: str):
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
 
+@bot.tree.command(name="sancion", description="Aplica una sanción a un usuario")
+@app_commands.describe(
+    usuario="Usuario al que sancionar",
+    rol="Rol de sanción a aplicar",
+    strikes="Número de strikes acumulados",
+    razon="Razón de la sanción",
+    autorizado_por="Persona que autoriza la sanción"
+)
+async def sancion(interaction: discord.Interaction, usuario: discord.Member, rol: discord.Role, strikes: int, razon: str, autorizado_por: discord.Member):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rol.position >= interaction.guild.me.top_role.position or rol.managed:
+            await interaction.response.send_message(
+                f"❌ No tengo permisos para asignar el rol '{rol.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rol in usuario.roles:
+            await interaction.response.send_message(
+                f"❌ {usuario.mention} ya tiene el rol '{rol.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Asignar el rol de sanción
+        await usuario.add_roles(rol)
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha sancionado a {usuario.mention} con el rol **{rol.name}**",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal de sanciones
+        await enviar_mensaje_sancion(interaction.guild, usuario, rol, strikes, razon, autorizado_por, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para asignar roles",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+async def enviar_mensaje_sancion(guild, usuario, rol, strikes, razon, autorizado_por, ejecuta):
+    """Envía el mensaje de sanción al canal '↪📛》𝗦anciones'"""
+    try:
+        # Buscar el canal "↪📛》𝗦anciones"
+        canal_sanciones = discord.utils.get(guild.channels, name="↪📛》𝗦anciones")
+        
+        if not canal_sanciones:
+            print("⚠️ Canal '↪📛》𝗦anciones' no encontrado")
+            return
+        
+        # Crear embed de sanción
+        embed_sancion = discord.Embed(
+            title="📛 Sanción Aplicada",
+            description=f"**Sanción:** {rol.mention}",
+            color=discord.Color.red()
+        )
+        
+        # Empleado sancionado
+        embed_sancion.add_field(
+            name="👷 Empleado sancionado:",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            inline=False
+        )
+        
+        # Acumulación de strikes
+        embed_sancion.add_field(
+            name="⚠️ Acumulación de strike:",
+            value=f"**{strikes}** strikes",
+            inline=False
+        )
+        
+        # Razón
+        embed_sancion.add_field(
+            name="💬 Razón:",
+            value=razon,
+            inline=False
+        )
+        
+        # Autorizado por
+        embed_sancion.add_field(
+            name="✅ Autorizado por:",
+            value=f"{autorizado_por.mention}",
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_sancion.set_footer(text=f"Ejecuta: {ejecuta.display_name}")
+        embed_sancion.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal de sanciones
+        await canal_sanciones.send(content=f"{usuario.mention}", embed=embed_sancion)
+        
+        print(f"✅ Mensaje de sanción enviado al canal '↪📛》𝗦anciones' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de sanción: {str(e)}")
+
+@bot.command(name="sancion", description="Aplica una sanción a un usuario")
+async def sancion_prefix(ctx, usuario: discord.Member, rol: discord.Role, strikes: int, autorizado_por: discord.Member, *, razon: str):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rol.position >= ctx.guild.me.top_role.position or rol.managed:
+            await ctx.send(f"❌ No tengo permisos para asignar el rol '{rol.name}'")
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rol in usuario.roles:
+            await ctx.send(f"❌ {usuario.mention} ya tiene el rol '{rol.name}'")
+            return
+        
+        # Asignar el rol de sanción
+        await usuario.add_roles(rol)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha sancionado a {usuario.mention} con el rol **{rol.name}**")
+        
+        # Enviar mensaje al canal de sanciones
+        await enviar_mensaje_sancion(ctx.guild, usuario, rol, strikes, razon, autorizado_por, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para asignar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
 # Ejecutar el bot
 if __name__ == "__main__":
     token = os.getenv('DISCORD_TOKEN')
