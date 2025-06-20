@@ -882,6 +882,192 @@ async def descenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, 
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
 
+@bot.tree.command(name="despido", description="Despide a un usuario y le asigna roles de sanción")
+@app_commands.describe(
+    usuario="Usuario al que despedir",
+    motivo="Motivo del despido"
+)
+async def despido(interaction: discord.Interaction, usuario: discord.Member, motivo: str):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Buscar los roles de sanción
+        roles_sancion = [
+            "═══════Sanciones═══════",
+            "❌| Despedido",
+            "🎟️〴Civil〴"
+        ]
+        
+        roles_a_asignar = []
+        roles_no_encontrados = []
+        
+        for nombre_rol in roles_sancion:
+            rol = discord.utils.get(interaction.guild.roles, name=nombre_rol)
+            if rol:
+                # Verificar que el bot puede asignar este rol
+                if rol.position < interaction.guild.me.top_role.position and not rol.managed:
+                    roles_a_asignar.append(rol)
+                else:
+                    roles_no_encontrados.append(nombre_rol)
+            else:
+                roles_no_encontrados.append(nombre_rol)
+        
+        if not roles_a_asignar:
+            await interaction.response.send_message(
+                f"❌ No se encontraron roles de sanción válidos. Roles configurados: {', '.join(roles_sancion)}",
+                ephemeral=True
+            )
+            if roles_no_encontrados:
+                await interaction.followup.send(
+                    f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}",
+                    ephemeral=True
+                )
+            return
+        
+        # Quitar todos los roles del usuario (excepto @everyone)
+        roles_a_quitar = [rol for rol in usuario.roles if rol.name != "@everyone"]
+        if roles_a_quitar:
+            await usuario.remove_roles(*roles_a_quitar)
+        
+        # Asignar roles de sanción
+        await usuario.add_roles(*roles_a_asignar)
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha despedido a {usuario.mention} y se le han asignado los roles de sanción",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal de despidos
+        await enviar_mensaje_despido(interaction.guild, usuario, motivo, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+async def enviar_mensaje_despido(guild, usuario, motivo, autor_comando):
+    """Envía el mensaje de despido al canal '↪🚫》𝗗espidos'"""
+    try:
+        # Buscar el canal "↪🚫》𝗗espidos"
+        canal_despidos = discord.utils.get(guild.channels, name="↪🚫》𝗗espidos")
+        
+        if not canal_despidos:
+            print("⚠️ Canal '↪🚫》𝗗espidos' no encontrado")
+            return
+        
+        # Crear embed de despido
+        embed_despido = discord.Embed(
+            title="💔 ¡Lamentamos tu despido!",
+            description=f"**Información acerca de este despido:**",
+            color=discord.Color.dark_red()
+        )
+        
+        # Información del obrero despedido
+        embed_despido.add_field(
+            name="👷 Obrero despedido:",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            inline=False
+        )
+        
+        # Motivo
+        embed_despido.add_field(
+            name="💬 Motivo:",
+            value=motivo,
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_despido.set_footer(text=f"Ejecuta: {autor_comando.display_name}")
+        embed_despido.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal de despidos
+        await canal_despidos.send(content=f"{usuario.mention}", embed=embed_despido)
+        
+        print(f"✅ Mensaje de despido enviado al canal '↪🚫》𝗗espidos' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de despido: {str(e)}")
+
+@bot.command(name="despido", description="Despide a un usuario y le asigna roles de sanción")
+async def despido_prefix(ctx, usuario: discord.Member, *, motivo: str):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Buscar los roles de sanción
+        roles_sancion = [
+            "═══════Sanciones═══════",
+            "❌| Despedido",
+            "🎟️〴Civil〴"
+        ]
+        
+        roles_a_asignar = []
+        roles_no_encontrados = []
+        
+        for nombre_rol in roles_sancion:
+            rol = discord.utils.get(ctx.guild.roles, name=nombre_rol)
+            if rol:
+                # Verificar que el bot puede asignar este rol
+                if rol.position < ctx.guild.me.top_role.position and not rol.managed:
+                    roles_a_asignar.append(rol)
+                else:
+                    roles_no_encontrados.append(nombre_rol)
+            else:
+                roles_no_encontrados.append(nombre_rol)
+        
+        if not roles_a_asignar:
+            await ctx.send(f"❌ No se encontraron roles de sanción válidos. Roles configurados: {', '.join(roles_sancion)}")
+            if roles_no_encontrados:
+                await ctx.send(f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}")
+            return
+        
+        # Quitar todos los roles del usuario (excepto @everyone)
+        roles_a_quitar = [rol for rol in usuario.roles if rol.name != "@everyone"]
+        if roles_a_quitar:
+            await usuario.remove_roles(*roles_a_quitar)
+        
+        # Asignar roles de sanción
+        await usuario.add_roles(*roles_a_asignar)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha despedido a {usuario.mention} y se le han asignado los roles de sanción")
+        
+        # Enviar mensaje al canal de despidos
+        await enviar_mensaje_despido(ctx.guild, usuario, motivo, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para gestionar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
 # Ejecutar el bot
 if __name__ == "__main__":
     token = os.getenv('DISCORD_TOKEN')
