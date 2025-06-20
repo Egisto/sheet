@@ -732,6 +732,156 @@ async def ascenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, m
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
 
+@bot.tree.command(name="descenso", description="Desciende a un usuario a un rango inferior")
+@app_commands.describe(
+    usuario="Usuario al que descender",
+    rango="Rol al que descender al usuario",
+    motivo="Motivo del descenso"
+)
+async def descenso(interaction: discord.Interaction, usuario: discord.Member, rango: discord.Role, motivo: str):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rango.position >= interaction.guild.me.top_role.position or rango.managed:
+            await interaction.response.send_message(
+                f"❌ No tengo permisos para asignar el rol '{rango.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rango in usuario.roles:
+            await interaction.response.send_message(
+                f"❌ {usuario.mention} ya tiene el rol '{rango.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Asignar el rol
+        await usuario.add_roles(rango)
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha descendido a {usuario.mention} al rango **{rango.name}**",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal de descensos
+        await enviar_mensaje_descenso(interaction.guild, usuario, rango, motivo, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para asignar roles",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+async def enviar_mensaje_descenso(guild, usuario, rango, motivo, autor_comando):
+    """Envía el mensaje de descenso al canal '↪📣》𝗦ubir-𝗕ajar-𝗥ango'"""
+    try:
+        # Buscar el canal "↪📣》𝗦ubir-𝗕ajar-𝗥ango"
+        canal_descensos = discord.utils.get(guild.channels, name="↪📣》𝗦ubir-𝗕ajar-𝗥ango")
+        
+        if not canal_descensos:
+            print("⚠️ Canal '↪📣》𝗦ubir-𝗕ajar-𝗥ango' no encontrado")
+            return
+        
+        # Crear embed de descenso
+        embed_descenso = discord.Embed(
+            title="🙁 Lo sentimos por tu descenso...",
+            description=f"**Información acerca de este descenso:**",
+            color=discord.Color.red()
+        )
+        
+        # Información del obrero descendido
+        embed_descenso.add_field(
+            name="👷 Obrero descendido:",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            inline=False
+        )
+        
+        # Rango descendido
+        embed_descenso.add_field(
+            name="📉 Rango descendido:",
+            value=f"{rango.mention}",
+            inline=False
+        )
+        
+        # Motivo
+        embed_descenso.add_field(
+            name="💬 Motivo:",
+            value=motivo,
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_descenso.set_footer(text=f"Ejecuta: {autor_comando.display_name}")
+        embed_descenso.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal de descensos
+        await canal_descensos.send(content=f"{usuario.mention}", embed=embed_descenso)
+        
+        print(f"✅ Mensaje de descenso enviado al canal '↪📣》𝗦ubir-𝗕ajar-𝗥ango' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de descenso: {str(e)}")
+
+@bot.command(name="descenso", description="Desciende a un usuario a un rango inferior")
+async def descenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, motivo: str):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rango.position >= ctx.guild.me.top_role.position or rango.managed:
+            await ctx.send(f"❌ No tengo permisos para asignar el rol '{rango.name}'")
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rango in usuario.roles:
+            await ctx.send(f"❌ {usuario.mention} ya tiene el rol '{rango.name}'")
+            return
+        
+        # Asignar el rol
+        await usuario.add_roles(rango)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha descendido a {usuario.mention} al rango **{rango.name}**")
+        
+        # Enviar mensaje al canal de descensos
+        await enviar_mensaje_descenso(ctx.guild, usuario, rango, motivo, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para asignar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
 # Ejecutar el bot
 if __name__ == "__main__":
     token = os.getenv('DISCORD_TOKEN')
