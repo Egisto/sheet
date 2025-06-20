@@ -585,10 +585,10 @@ async def asignar_placa_prefix(ctx, usuario: discord.Member, numero_placa: int):
 @bot.tree.command(name="ascenso", description="Asciende a un usuario a un nuevo rango")
 @app_commands.describe(
     usuario="Usuario al que ascender",
-    rango="Rango al que ascender al usuario",
+    rango="Rol al que ascender al usuario",
     motivo="Motivo del ascenso"
 )
-async def ascenso(interaction: discord.Interaction, usuario: discord.Member, rango: str, motivo: str):
+async def ascenso(interaction: discord.Interaction, usuario: discord.Member, rango: discord.Role, motivo: str):
     # Verificar permisos
     if not interaction.user.guild_permissions.manage_roles:
         await interaction.response.send_message(
@@ -606,38 +606,28 @@ async def ascenso(interaction: discord.Interaction, usuario: discord.Member, ran
         return
     
     try:
-        # Buscar el rol por nombre
-        rol_ascenso = discord.utils.get(interaction.guild.roles, name=rango)
-        
-        if not rol_ascenso:
-            await interaction.response.send_message(
-                f"❌ No se encontró el rol '{rango}' en el servidor",
-                ephemeral=True
-            )
-            return
-        
         # Verificar que el bot puede asignar este rol
-        if rol_ascenso.position >= interaction.guild.me.top_role.position or rol_ascenso.managed:
+        if rango.position >= interaction.guild.me.top_role.position or rango.managed:
             await interaction.response.send_message(
-                f"❌ No tengo permisos para asignar el rol '{rango}'",
+                f"❌ No tengo permisos para asignar el rol '{rango.name}'",
                 ephemeral=True
             )
             return
         
         # Verificar si el usuario ya tiene el rol
-        if rol_ascenso in usuario.roles:
+        if rango in usuario.roles:
             await interaction.response.send_message(
-                f"❌ {usuario.mention} ya tiene el rol '{rango}'",
+                f"❌ {usuario.mention} ya tiene el rol '{rango.name}'",
                 ephemeral=True
             )
             return
         
         # Asignar el rol
-        await usuario.add_roles(rol_ascenso)
+        await usuario.add_roles(rango)
         
         # Enviar confirmación al usuario que ejecutó el comando
         await interaction.response.send_message(
-            f"✅ Se ha ascendido a {usuario.mention} al rango **{rango}**",
+            f"✅ Se ha ascendido a {usuario.mention} al rango **{rango.name}**",
             ephemeral=True
         )
         
@@ -682,7 +672,7 @@ async def enviar_mensaje_ascenso(guild, usuario, rango, motivo, autor_comando):
         # Rango ascendido
         embed_ascenso.add_field(
             name="🥇 Rango ascendido:",
-            value=f"**{rango}**",
+            value=f"{rango.mention}",
             inline=False
         )
         
@@ -706,7 +696,7 @@ async def enviar_mensaje_ascenso(guild, usuario, rango, motivo, autor_comando):
         print(f"❌ Error al enviar mensaje de ascenso: {str(e)}")
 
 @bot.command(name="ascenso", description="Asciende a un usuario a un nuevo rango")
-async def ascenso_prefix(ctx, usuario: discord.Member, rango: str, *, motivo: str):
+async def ascenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, motivo: str):
     # Verificar permisos
     if not ctx.author.guild_permissions.manage_roles:
         await ctx.send("❌ No tienes permisos para gestionar roles")
@@ -718,28 +708,21 @@ async def ascenso_prefix(ctx, usuario: discord.Member, rango: str, *, motivo: st
         return
     
     try:
-        # Buscar el rol por nombre
-        rol_ascenso = discord.utils.get(ctx.guild.roles, name=rango)
-        
-        if not rol_ascenso:
-            await ctx.send(f"❌ No se encontró el rol '{rango}' en el servidor")
-            return
-        
         # Verificar que el bot puede asignar este rol
-        if rol_ascenso.position >= ctx.guild.me.top_role.position or rol_ascenso.managed:
-            await ctx.send(f"❌ No tengo permisos para asignar el rol '{rango}'")
+        if rango.position >= ctx.guild.me.top_role.position or rango.managed:
+            await ctx.send(f"❌ No tengo permisos para asignar el rol '{rango.name}'")
             return
         
         # Verificar si el usuario ya tiene el rol
-        if rol_ascenso in usuario.roles:
-            await ctx.send(f"❌ {usuario.mention} ya tiene el rol '{rango}'")
+        if rango in usuario.roles:
+            await ctx.send(f"❌ {usuario.mention} ya tiene el rol '{rango.name}'")
             return
         
         # Asignar el rol
-        await usuario.add_roles(rol_ascenso)
+        await usuario.add_roles(rango)
         
         # Enviar confirmación al canal donde se ejecutó el comando
-        await ctx.send(f"✅ Se ha ascendido a {usuario.mention} al rango **{rango}**")
+        await ctx.send(f"✅ Se ha ascendido a {usuario.mention} al rango **{rango.name}**")
         
         # Enviar mensaje al canal de ascensos
         await enviar_mensaje_ascenso(ctx.guild, usuario, rango, motivo, ctx.author)
