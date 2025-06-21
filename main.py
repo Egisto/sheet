@@ -1,9 +1,10 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 import os
 from dotenv import load_dotenv
 import datetime
+import pytz
 
 # Cargar variables de entorno
 load_dotenv()
@@ -46,6 +47,102 @@ async def on_ready():
     print('   - /periodo-de-prueba <usuario>')
     print(f'   - Roles predefinidos: {", ".join(ROLES_PERIODO_PRUEBA)}')
     print('✅ Nuevo comando: /asignar-placa <usuario> <número_placa>')
+    
+    # Iniciar la tarea de mensaje diario
+    enviar_mensaje_actividad_diaria.start()
+    print('✅ Tarea de mensaje diario iniciada')
+
+@tasks.loop(hours=24)
+async def enviar_mensaje_actividad_diaria():
+    """Envía el mensaje de actividad diaria todos los días a las 15:00 GMT+2"""
+    # Configurar zona horaria
+    tz = pytz.timezone('Europe/Madrid')  # GMT+2
+    ahora = datetime.datetime.now(tz)
+    
+    # Verificar si es la hora correcta (15:00)
+    if ahora.hour == 15 and ahora.minute == 10:
+        await enviar_mensaje_actividad()
+    else:
+        # Si no es la hora correcta, esperar hasta la próxima verificación
+        pass
+
+async def enviar_mensaje_actividad():
+    """Envía el mensaje de actividad diaria al canal correspondiente"""
+    try:
+        # Obtener la fecha actual en formato español
+        tz = pytz.timezone('Europe/Madrid')
+        fecha_actual = datetime.datetime.now(tz)
+        fecha_formateada = fecha_actual.strftime('%d/%m/%Y')
+        
+        # Buscar el canal de actividad
+        for guild in bot.guilds:
+            canal_actividad = discord.utils.get(guild.channels, name="↪⏰》𝗔ctividad")
+            
+            if not canal_actividad:
+                print(f"⚠️ Canal '↪⏰》𝗔ctividad' no encontrado en {guild.name}")
+                continue
+            
+            # Buscar el rol de Personal MTMS
+            rol_personal = discord.utils.get(guild.roles, name="👷〴Personal MTMS〴")
+            
+            if not rol_personal:
+                print(f"⚠️ Rol '👷〴Personal MTMS〴' no encontrado en {guild.name}")
+                continue
+            
+            # Crear el mensaje de actividad diaria
+            mensaje_actividad = f"""**ACTIVIDAD DIARIA**
+
+El {rol_personal.mention} debe reaccionar a este mensaje para saber su actividad en MTMS. Es forma obligatoria para todos los rangos y así saber la actividad del servidor. El no reaccionar podría llevar a cabo una llamada de atención, un strike o un despido.
+
+**FECHA DEL DÍA DE HOY:** {fecha_formateada}"""
+            
+            # Enviar el mensaje
+            mensaje_enviado = await canal_actividad.send(content=mensaje_actividad)
+            
+            # Agregar reacción automática para facilitar la respuesta
+            await mensaje_enviado.add_reaction('✅')
+            
+            print(f"✅ Mensaje de actividad diaria enviado en {guild.name} - {fecha_formateada}")
+            
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de actividad diaria: {str(e)}")
+
+# Comando manual para enviar mensaje de actividad (para pruebas)
+@bot.tree.command(name="enviar-actividad", description="Envía manualmente el mensaje de actividad diaria")
+async def enviar_actividad_manual(interaction: discord.Interaction):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(
+            "❌ Solo los administradores pueden usar este comando",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        await enviar_mensaje_actividad()
+        await interaction.response.send_message(
+            "✅ Mensaje de actividad diaria enviado manualmente",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error al enviar mensaje: {str(e)}",
+            ephemeral=True
+        )
+
+# Comando manual para enviar mensaje de actividad (prefijo)
+@bot.command(name="enviar-actividad", description="Envía manualmente el mensaje de actividad diaria")
+async def enviar_actividad_manual_prefix(ctx):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("❌ Solo los administradores pueden usar este comando")
+        return
+    
+    try:
+        await enviar_mensaje_actividad()
+        await ctx.send("✅ Mensaje de actividad diaria enviado manualmente")
+    except Exception as e:
+        await ctx.send(f"❌ Error al enviar mensaje: {str(e)}")
 
 class RolView(discord.ui.View):
     def __init__(self, usuario, roles_disponibles):
