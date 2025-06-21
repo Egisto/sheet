@@ -4,7 +4,7 @@ from discord.ext import commands, tasks
 import os
 from dotenv import load_dotenv
 import datetime
-import pytz
+import time
 
 # Cargar variables de entorno
 load_dotenv()
@@ -52,26 +52,29 @@ async def on_ready():
     enviar_mensaje_actividad_diaria.start()
     print('✅ Tarea de mensaje diario iniciada')
 
-@tasks.loop(hours=24)
+@tasks.loop(minutes=1)
 async def enviar_mensaje_actividad_diaria():
-    """Envía el mensaje de actividad diaria todos los días a las 15:00 GMT+2"""
-    # Configurar zona horaria
-    tz = pytz.timezone('Europe/Madrid')  # GMT+2
-    ahora = datetime.datetime.now(tz)
+    """Envía el mensaje de actividad diaria todos los días a las 15:10 GMT+2"""
+    # Obtener hora actual en UTC
+    ahora_utc = datetime.datetime.utcnow()
     
-    # Verificar si es la hora correcta (15:00)
-    if ahora.hour == 15 and ahora.minute == 10:
+    # Convertir a GMT+2 (UTC+2)
+    ahora_gmt2 = ahora_utc + datetime.timedelta(hours=2)
+    
+    # Verificar si es la hora correcta (15:10)
+    if ahora_gmt2.hour == 15 and ahora_gmt2.minute == 10:
         await enviar_mensaje_actividad()
+        print(f"✅ Verificando hora: {ahora_gmt2.strftime('%H:%M')} - Enviando mensaje de actividad")
     else:
-        # Si no es la hora correcta, esperar hasta la próxima verificación
-        pass
+        # Solo imprimir cada 10 minutos para no saturar los logs
+        if ahora_gmt2.minute % 10 == 0:
+            print(f"⏰ Hora actual GMT+2: {ahora_gmt2.strftime('%H:%M')} - Esperando a las 15:10")
 
 async def enviar_mensaje_actividad():
     """Envía el mensaje de actividad diaria al canal correspondiente"""
     try:
-        # Obtener la fecha actual en formato español
-        tz = pytz.timezone('Europe/Madrid')
-        fecha_actual = datetime.datetime.now(tz)
+        # Obtener la fecha actual en formato español (GMT+2)
+        fecha_actual = datetime.datetime.utcnow() + datetime.timedelta(hours=2)
         fecha_formateada = fecha_actual.strftime('%d/%m/%Y')
         
         # Buscar el canal de actividad
