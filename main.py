@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import datetime
 import time
+import re
 
 # Cargar variables de entorno
 load_dotenv()
@@ -744,10 +745,16 @@ async def ascenso(interaction: discord.Interaction, usuario: discord.Member, ran
         # Cambiar la placa si el rol está en el diccionario
         prefijo = PREFIJOS_PLACA.get(rango.name)
         if prefijo:
-            nuevo_nickname = f"{prefijo} | {usuario.name}"
+            # Intentar extraer el número de placa del nickname actual
+            numero_placa = "00"
+            if usuario.nick:
+                match = re.match(r"^[A-Z]{3}-?(\d{1,2})\s*\|", usuario.nick)
+                if match:
+                    numero_placa = match.group(1)
+            nuevo_nickname = f"{prefijo}-{numero_placa} | {usuario.name}"
             if len(nuevo_nickname) > 32:
-                nombre_truncado = usuario.name[:32 - len(f"{prefijo} | ")]
-                nuevo_nickname = f"{prefijo} | {nombre_truncado}"
+                nombre_truncado = usuario.name[:32 - len(f"{prefijo}-{numero_placa} | ")]
+                nuevo_nickname = f"{prefijo}-{numero_placa} | {nombre_truncado}"
             try:
                 await usuario.edit(nick=nuevo_nickname)
             except Exception as e:
@@ -852,10 +859,16 @@ async def ascenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, m
         # Cambiar la placa si el rol está en el diccionario
         prefijo = PREFIJOS_PLACA.get(rango.name)
         if prefijo:
-            nuevo_nickname = f"{prefijo} | {usuario.name}"
+            # Intentar extraer el número de placa del nickname actual
+            numero_placa = "00"
+            if usuario.nick:
+                match = re.match(r"^[A-Z]{3}-?(\d{1,2})\s*\|", usuario.nick)
+                if match:
+                    numero_placa = match.group(1)
+            nuevo_nickname = f"{prefijo}-{numero_placa} | {usuario.name}"
             if len(nuevo_nickname) > 32:
-                nombre_truncado = usuario.name[:32 - len(f"{prefijo} | ")]
-                nuevo_nickname = f"{prefijo} | {nombre_truncado}"
+                nombre_truncado = usuario.name[:32 - len(f"{prefijo}-{numero_placa} | ")]
+                nuevo_nickname = f"{prefijo}-{numero_placa} | {nombre_truncado}"
             try:
                 await usuario.edit(nick=nuevo_nickname)
             except Exception as e:
