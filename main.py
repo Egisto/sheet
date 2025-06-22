@@ -28,6 +28,26 @@ ROLES_PERIODO_PRUEBA = [
     "Curso Aprendiz"
 ]
 
+# Diccionario de prefijos de placa según el rol
+PREFIJOS_PLACA = {
+    "🚐〴Secretario De Infraestructura General〴": "SEC",
+    "🚐〴Sub. Secretario De Infraestructura General〴": "SBC",
+    "⛏️〴Director General〴": "DIR",
+    "🎩〴Sub. Director General〴": "SDR",
+    "🔧〴Director General En Pruebas〴": "DGP",
+    "💻〴Gerente General〴": "GER",
+    "🖋️〴Gerente En Pruebas〴": "GPR",
+    "💼〴Asistente〴": "AST",
+    "🧰〴Jefe De Area Técnica〴": "JAT",
+    "🚗〴Jefe De Incautaciones〴": "JIC",
+    "🦺〴Jefe De Carreteras〴": "JCT",
+    "🚘〴Operador Principal〴": "OPR",
+    "⛔〴Operador Vial〴": "OPV",
+    "🚧〴Auxiliar Vial〴": "AXV",
+    "🚦〴Mecanico Experimentado〴": "MEC",
+    "🔖〴Nuevo Ingreso〴": "NVI"
+}
+
 @bot.event
 async def on_ready():
     print(f'✅ {bot.user} se ha conectado a Discord!')
@@ -721,6 +741,18 @@ async def ascenso(interaction: discord.Interaction, usuario: discord.Member, ran
         # Asignar el rol
         await usuario.add_roles(rango)
         
+        # Cambiar la placa si el rol está en el diccionario
+        prefijo = PREFIJOS_PLACA.get(rango.name)
+        if prefijo:
+            nuevo_nickname = f"{prefijo} | {usuario.name}"
+            if len(nuevo_nickname) > 32:
+                nombre_truncado = usuario.name[:32 - len(f"{prefijo} | ")]
+                nuevo_nickname = f"{prefijo} | {nombre_truncado}"
+            try:
+                await usuario.edit(nick=nuevo_nickname)
+            except Exception as e:
+                print(f"❌ Error al cambiar la placa: {str(e)}")
+        
         # Enviar confirmación al usuario que ejecutó el comando
         await interaction.response.send_message(
             f"✅ Se ha ascendido a {usuario.mention} al rango **{rango.name}**",
@@ -816,6 +848,18 @@ async def ascenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, m
         
         # Asignar el rol
         await usuario.add_roles(rango)
+        
+        # Cambiar la placa si el rol está en el diccionario
+        prefijo = PREFIJOS_PLACA.get(rango.name)
+        if prefijo:
+            nuevo_nickname = f"{prefijo} | {usuario.name}"
+            if len(nuevo_nickname) > 32:
+                nombre_truncado = usuario.name[:32 - len(f"{prefijo} | ")]
+                nuevo_nickname = f"{prefijo} | {nombre_truncado}"
+            try:
+                await usuario.edit(nick=nuevo_nickname)
+            except Exception as e:
+                print(f"❌ Error al cambiar la placa: {str(e)}")
         
         # Enviar confirmación al canal donde se ejecutó el comando
         await ctx.send(f"✅ Se ha ascendido a {usuario.mention} al rango **{rango.name}**")
