@@ -226,8 +226,11 @@ class RolButton(discord.ui.Button):
             )
 
 @bot.tree.command(name="periodo-de-prueba", description="Asigna roles predefinidos de período de prueba a un usuario")
-@app_commands.describe(usuario="Usuario al que asignar el período de prueba")
-async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Member):
+@app_commands.describe(
+    usuario="Usuario al que asignar el período de prueba",
+    usuario_roblox="Usuario de Roblox del nuevo ingreso"
+)
+async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Member, usuario_roblox: str):
     # Verificar permisos
     if not interaction.user.guild_permissions.manage_roles:
         await interaction.response.send_message(
@@ -294,7 +297,7 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
         
         # Enviar mensaje al canal después de la respuesta
         try:
-            await enviar_mensaje_periodo_prueba(interaction.guild, usuario, interaction.user)
+            await enviar_mensaje_periodo_prueba(interaction.guild, usuario, interaction.user, usuario_roblox)
         except Exception as e:
             print(f"❌ Error al enviar mensaje al canal: {str(e)}")
         
@@ -309,7 +312,7 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
             ephemeral=True
         )
 
-async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
+async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando, usuario_roblox):
     """Envía el mensaje de período de prueba al canal '↪📰》𝗣eriodo-de-𝗣rueba'"""
     try:
         # Buscar el canal "boosts"
@@ -336,7 +339,7 @@ async def enviar_mensaje_periodo_prueba(guild, usuario, autor_comando):
         # Información del obrero en pruebas
         embed_periodo.add_field(
             name="👷 Obrero en pruebas:",
-            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)\n**Usuario de Roblox:** `{usuario_roblox}`",
             inline=False
         )
         
@@ -502,7 +505,7 @@ async def periodo_prueba_prefix(ctx, usuario: discord.Member):
             await ctx.send(f"ℹ️ {usuario.mention} ya tenía todos los roles configurados")
         
         # Enviar mensaje al canal "boosts"
-        await enviar_mensaje_periodo_prueba(ctx.guild, usuario, ctx.author)
+        await enviar_mensaje_periodo_prueba(ctx.guild, usuario, ctx.author, "N/A") # Assuming no Roblox user for prefix command
         
     except discord.Forbidden:
         await ctx.send("❌ No tengo permisos para asignar roles")
