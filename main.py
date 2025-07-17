@@ -285,6 +285,23 @@ async def periodo_prueba(interaction: discord.Interaction, usuario: discord.Memb
         if roles_nuevos:
             await usuario.add_roles(*roles_nuevos)
         
+        # Cambiar el nickname por el usuario de Roblox, manteniendo la placa si existe
+        try:
+            nickname_actual = usuario.nick or usuario.name
+            match = re.match(r"^([A-Z]{3}-\d{1,2}) \| .+$", nickname_actual)
+            if match:
+                placa = match.group(1)
+                nuevo_nick = f"{placa} | {usuario_roblox}"
+            else:
+                nuevo_nick = usuario_roblox
+
+            if len(nuevo_nick) > 32:
+                nuevo_nick = nuevo_nick[:32]
+
+            await usuario.edit(nick=nuevo_nick)
+        except Exception as e:
+            print(f"❌ Error al cambiar el nickname: {str(e)}")
+
         # Preparar mensaje de confirmación
         if roles_nuevos:
             roles_asignados_texto = ", ".join([rol.mention for rol in roles_nuevos])
