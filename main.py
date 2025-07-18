@@ -560,13 +560,14 @@ async def asignar_placa(interaction: discord.Interaction, usuario: discord.Membe
         return
     
     try:
-        # Crear el nuevo nickname
-        nuevo_nickname = f"NVI-{numero_placa} | {usuario.name}"
+        # Obtener el nickname actual o el nombre si no tiene nickname
+        nombre_actual = usuario.nick if usuario.nick else usuario.name
+        nuevo_nickname = f"NVI-{numero_placa} | {nombre_actual}"
         
         # Verificar si el nickname es muy largo (límite de Discord: 32 caracteres)
         if len(nuevo_nickname) > 32:
             # Truncar el nombre si es necesario
-            nombre_truncado = usuario.name[:32 - len(f"NVI-{numero_placa} | ")]
+            nombre_truncado = nombre_actual[:32 - len(f"NVI-{numero_placa} | ")]
             nuevo_nickname = f"NVI-{numero_placa} | {nombre_truncado}"
         
         # Cambiar el nickname del usuario
