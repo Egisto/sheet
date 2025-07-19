@@ -43,7 +43,7 @@ PREFIJOS_PLACA = {
     "🚗〴Jefe De Incautaciones〴": "JIC",
     "🦺〴Jefe De Carreteras〴": "JCT",
     "🛑〴Tecnico Superior〴": "TCS",
-    "⛔〴Operador Vial〴": "OPV",
+    "⛔〴Operador Principal〴": "OPR",
     "🚧〴Auxiliar Vial〴": "AXV",
     "🚦〴Mecanico Experimentado〴": "MEC",
     "🔖〴Nuevo Ingreso〴": "NVI"
@@ -850,6 +850,742 @@ async def enviar_mensaje_ascenso(guild, usuario, rango, motivo, autor_comando):
         
     except Exception as e:
         print(f"❌ Error al enviar mensaje de ascenso: {str(e)}")
+
+@bot.command(name="ascenso", description="Asciende a un usuario a un nuevo rango")
+async def ascenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, motivo: str):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rango.position >= ctx.guild.me.top_role.position or rango.managed:
+            await ctx.send(f"❌ No tengo permisos para asignar el rol '{rango.name}'")
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rango in usuario.roles:
+            await ctx.send(f"❌ {usuario.mention} ya tiene el rol '{rango.name}'")
+            return
+        
+        # Asignar el rol
+        await usuario.add_roles(rango)
+        
+        # Cambiar la placa si el rol está en el diccionario
+        prefijo = PREFIJOS_PLACA.get(rango.name)
+        if prefijo:
+            # Intentar extraer el número de placa del nickname actual
+            numero_placa = "00"
+            if usuario.nick:
+                match = re.match(r"^[A-Z]{3}-?(\d{1,2})\s*\|", usuario.nick)
+                if match:
+                    numero_placa = match.group(1)
+            nuevo_nickname = f"{prefijo}-{numero_placa} | {usuario.name}"
+            if len(nuevo_nickname) > 32:
+                nombre_truncado = usuario.name[:32 - len(f"{prefijo}-{numero_placa} | ")]
+                nuevo_nickname = f"{prefijo}-{numero_placa} | {nombre_truncado}"
+            try:
+                await usuario.edit(nick=nuevo_nickname)
+            except Exception as e:
+                print(f"❌ Error al cambiar la placa: {str(e)}")
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha ascendido a {usuario.mention} al rango **{rango.name}**")
+        
+        # Enviar mensaje al canal de ascensos
+        await enviar_mensaje_ascenso(ctx.guild, usuario, rango, motivo, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para asignar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
+@bot.tree.command(name="descenso", description="Desciende a un usuario a un rango inferior")
+@app_commands.describe(
+    usuario="Usuario al que descender",
+    rango="Rol al que descender al usuario",
+    motivo="Motivo del descenso"
+)
+async def descenso(interaction: discord.Interaction, usuario: discord.Member, rango: discord.Role, motivo: str):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rango.position >= interaction.guild.me.top_role.position or rango.managed:
+            await interaction.response.send_message(
+                f"❌ No tengo permisos para asignar el rol '{rango.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rango in usuario.roles:
+            await interaction.response.send_message(
+                f"❌ {usuario.mention} ya tiene el rol '{rango.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Asignar el rol
+        await usuario.add_roles(rango)
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha descendido a {usuario.mention} al rango **{rango.name}**",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal de descensos
+        await enviar_mensaje_descenso(interaction.guild, usuario, rango, motivo, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para asignar roles",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+async def enviar_mensaje_descenso(guild, usuario, rango, motivo, autor_comando):
+    """Envía el mensaje de descenso al canal '↪📣》𝗦ubir-𝗕ajar-𝗥ango'"""
+    try:
+        # Buscar el canal "↪📣》𝗦ubir-𝗕ajar-𝗥ango"
+        canal_descensos = discord.utils.get(guild.channels, name="↪📣》𝗦ubir-𝗕ajar-𝗥ango")
+        
+        if not canal_descensos:
+            print("⚠️ Canal '↪📣》𝗦ubir-𝗕ajar-𝗥ango' no encontrado")
+            return
+        
+        # Crear embed de descenso
+        embed_descenso = discord.Embed(
+            title="🙁 Lo sentimos por tu descenso...",
+            description=f"**Información acerca de este descenso:**",
+            color=discord.Color.red()
+        )
+        
+        # Información del obrero descendido
+        embed_descenso.add_field(
+            name="👷 Obrero descendido:",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            inline=False
+        )
+        
+        # Rango descendido
+        embed_descenso.add_field(
+            name="📉 Rango descendido:",
+            value=f"{rango.mention}",
+            inline=False
+        )
+        
+        # Motivo
+        embed_descenso.add_field(
+            name="💬 Motivo:",
+            value=motivo,
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_descenso.set_footer(text=f"Ejecuta: {autor_comando.display_name}")
+        embed_descenso.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal de descensos
+        await canal_descensos.send(content=f"{usuario.mention}", embed=embed_descenso)
+        
+        print(f"✅ Mensaje de descenso enviado al canal '↪📣》𝗦ubir-𝗕ajar-𝗥ango' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de descenso: {str(e)}")
+
+@bot.command(name="descenso", description="Desciende a un usuario a un rango inferior")
+async def descenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, motivo: str):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rango.position >= ctx.guild.me.top_role.position or rango.managed:
+            await ctx.send(f"❌ No tengo permisos para asignar el rol '{rango.name}'")
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rango in usuario.roles:
+            await ctx.send(f"❌ {usuario.mention} ya tiene el rol '{rango.name}'")
+            return
+        
+        # Asignar el rol
+        await usuario.add_roles(rango)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha descendido a {usuario.mention} al rango **{rango.name}**")
+        
+        # Enviar mensaje al canal de descensos
+        await enviar_mensaje_descenso(ctx.guild, usuario, rango, motivo, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para asignar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
+@bot.tree.command(name="despido", description="Despide a un usuario y le asigna roles de sanción")
+@app_commands.describe(
+    usuario="Usuario al que despedir",
+    motivo="Motivo del despido"
+)
+async def despido(interaction: discord.Interaction, usuario: discord.Member, motivo: str):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Buscar los roles de sanción
+        roles_sancion = [
+            "═══════Sanciones═══════",
+            "❌| Despedido",
+            "🎟️〴Civil〴"
+        ]
+        
+        roles_a_asignar = []
+        roles_no_encontrados = []
+        
+        for nombre_rol in roles_sancion:
+            rol = discord.utils.get(interaction.guild.roles, name=nombre_rol)
+            if rol:
+                # Verificar que el bot puede asignar este rol
+                if rol.position < interaction.guild.me.top_role.position and not rol.managed:
+                    roles_a_asignar.append(rol)
+                else:
+                    roles_no_encontrados.append(nombre_rol)
+            else:
+                roles_no_encontrados.append(nombre_rol)
+        
+        if not roles_a_asignar:
+            await interaction.response.send_message(
+                f"❌ No se encontraron roles de sanción válidos. Roles configurados: {', '.join(roles_sancion)}",
+                ephemeral=True
+            )
+            if roles_no_encontrados:
+                await interaction.followup.send(
+                    f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}",
+                    ephemeral=True
+                )
+            return
+        
+        # Quitar todos los roles del usuario (excepto @everyone)
+        roles_a_quitar = [rol for rol in usuario.roles if rol.name != "@everyone"]
+        if roles_a_quitar:
+            await usuario.remove_roles(*roles_a_quitar)
+        
+        # Asignar roles de sanción
+        await usuario.add_roles(*roles_a_asignar)
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha despedido a {usuario.mention} y se le han asignado los roles de sanción",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal de despidos
+        await enviar_mensaje_despido(interaction.guild, usuario, motivo, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+async def enviar_mensaje_despido(guild, usuario, motivo, autor_comando):
+    """Envía el mensaje de despido al canal '↪🚫》𝗗espidos'"""
+    try:
+        # Buscar el canal "↪🚫》𝗗espidos"
+        canal_despidos = discord.utils.get(guild.channels, name="↪🚫》𝗗espidos")
+        
+        if not canal_despidos:
+            print("⚠️ Canal '↪🚫》𝗗espidos' no encontrado")
+            return
+        
+        # Crear embed de despido
+        embed_despido = discord.Embed(
+            title="💔 ¡Lamentamos tu despido!",
+            description=f"**Información acerca de este despido:**",
+            color=discord.Color.dark_red()
+        )
+        
+        # Información del obrero despedido
+        embed_despido.add_field(
+            name="👷 Obrero despedido:",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            inline=False
+        )
+        
+        # Motivo
+        embed_despido.add_field(
+            name="💬 Motivo:",
+            value=motivo,
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_despido.set_footer(text=f"Ejecuta: {autor_comando.display_name}")
+        embed_despido.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal de despidos
+        await canal_despidos.send(content=f"{usuario.mention}", embed=embed_despido)
+        
+        print(f"✅ Mensaje de despido enviado al canal '↪🚫》𝗗espidos' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de despido: {str(e)}")
+
+@bot.command(name="despido", description="Despide a un usuario y le asigna roles de sanción")
+async def despido_prefix(ctx, usuario: discord.Member, *, motivo: str):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Buscar los roles de sanción
+        roles_sancion = [
+            "═══════Sanciones═══════",
+            "❌| Despedido",
+            "🎟️〴Civil〴"
+        ]
+        
+        roles_a_asignar = []
+        roles_no_encontrados = []
+        
+        for nombre_rol in roles_sancion:
+            rol = discord.utils.get(ctx.guild.roles, name=nombre_rol)
+            if rol:
+                # Verificar que el bot puede asignar este rol
+                if rol.position < ctx.guild.me.top_role.position and not rol.managed:
+                    roles_a_asignar.append(rol)
+                else:
+                    roles_no_encontrados.append(nombre_rol)
+            else:
+                roles_no_encontrados.append(nombre_rol)
+        
+        if not roles_a_asignar:
+            await ctx.send(f"❌ No se encontraron roles de sanción válidos. Roles configurados: {', '.join(roles_sancion)}")
+            if roles_no_encontrados:
+                await ctx.send(f"⚠️ Roles no encontrados o sin permisos: {', '.join(roles_no_encontrados)}")
+            return
+        
+        # Quitar todos los roles del usuario (excepto @everyone)
+        roles_a_quitar = [rol for rol in usuario.roles if rol.name != "@everyone"]
+        if roles_a_quitar:
+            await usuario.remove_roles(*roles_a_quitar)
+        
+        # Asignar roles de sanción
+        await usuario.add_roles(*roles_a_asignar)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha despedido a {usuario.mention} y se le han asignado los roles de sanción")
+        
+        # Enviar mensaje al canal de despidos
+        await enviar_mensaje_despido(ctx.guild, usuario, motivo, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para gestionar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
+@bot.tree.command(name="sancion", description="Aplica una sanción a un usuario")
+@app_commands.describe(
+    usuario="Usuario al que sancionar",
+    rol="Rol de sanción a aplicar",
+    strikes="Número de strikes acumulados",
+    razon="Razón de la sanción",
+    autorizado_por="Persona que autoriza la sanción"
+)
+async def sancion(interaction: discord.Interaction, usuario: discord.Member, rol: discord.Role, strikes: int, razon: str, autorizado_por: discord.Member):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rol.position >= interaction.guild.me.top_role.position or rol.managed:
+            await interaction.response.send_message(
+                f"❌ No tengo permisos para asignar el rol '{rol.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rol in usuario.roles:
+            await interaction.response.send_message(
+                f"❌ {usuario.mention} ya tiene el rol '{rol.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Asignar el rol de sanción
+        await usuario.add_roles(rol)
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha sancionado a {usuario.mention} con el rol **{rol.name}**",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal de sanciones
+        await enviar_mensaje_sancion(interaction.guild, usuario, rol, strikes, razon, autorizado_por, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para asignar roles",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+async def enviar_mensaje_sancion(guild, usuario, rol, strikes, razon, autorizado_por, ejecuta):
+    """Envía el mensaje de sanción al canal '↪📛》𝗦anciones'"""
+    try:
+        # Buscar el canal "↪📛》𝗦anciones"
+        canal_sanciones = discord.utils.get(guild.channels, name="↪📛》𝗦anciones")
+        
+        if not canal_sanciones:
+            print("⚠️ Canal '↪📛》𝗦anciones' no encontrado")
+            return
+        
+        # Crear embed de sanción
+        embed_sancion = discord.Embed(
+            title="📛 Sanción Aplicada",
+            description=f"**Sanción:** {rol.mention}",
+            color=discord.Color.red()
+        )
+        
+        # Empleado sancionado
+        embed_sancion.add_field(
+            name="👷 Empleado sancionado:",
+            value=f"{usuario.mention} (`{usuario.name}#{usuario.discriminator}` - ID: `{usuario.id}`)",
+            inline=False
+        )
+        
+        # Acumulación de strikes
+        embed_sancion.add_field(
+            name="⚠️ Acumulación de strike:",
+            value=f"**{strikes}** strikes",
+            inline=False
+        )
+        
+        # Razón
+        embed_sancion.add_field(
+            name="💬 Razón:",
+            value=razon,
+            inline=False
+        )
+        
+        # Autorizado por
+        embed_sancion.add_field(
+            name="✅ Autorizado por:",
+            value=f"{autorizado_por.mention}",
+            inline=False
+        )
+        
+        # Footer con información adicional
+        embed_sancion.set_footer(text=f"Ejecuta: {ejecuta.display_name}")
+        embed_sancion.set_thumbnail(url=usuario.display_avatar.url)
+        
+        # Enviar mensaje al canal de sanciones
+        await canal_sanciones.send(content=f"{usuario.mention}", embed=embed_sancion)
+        
+        print(f"✅ Mensaje de sanción enviado al canal '↪📛》𝗦anciones' para {usuario.display_name}")
+        
+    except Exception as e:
+        print(f"❌ Error al enviar mensaje de sanción: {str(e)}")
+
+@bot.command(name="sancion", description="Aplica una sanción a un usuario")
+async def sancion_prefix(ctx, usuario: discord.Member, rol: discord.Role, strikes: int, autorizado_por: discord.Member, *, razon: str):
+    # Verificar permisos
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("❌ No tienes permisos para gestionar roles")
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("❌ No tengo permisos para gestionar roles en este servidor")
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rol.position >= ctx.guild.me.top_role.position or rol.managed:
+            await ctx.send(f"❌ No tengo permisos para asignar el rol '{rol.name}'")
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rol in usuario.roles:
+            await ctx.send(f"❌ {usuario.mention} ya tiene el rol '{rol.name}'")
+            return
+        
+        # Asignar el rol de sanción
+        await usuario.add_roles(rol)
+        
+        # Enviar confirmación al canal donde se ejecutó el comando
+        await ctx.send(f"✅ Se ha sancionado a {usuario.mention} con el rol **{rol.name}**")
+        
+        # Enviar mensaje al canal de sanciones
+        await enviar_mensaje_sancion(ctx.guild, usuario, rol, strikes, razon, autorizado_por, ctx.author)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para asignar roles")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
+def cambiar_numero_placa(nick_actual, nuevo_numero):
+    """
+    Cambia el número de placa en el nickname manteniendo el resto igual.
+    Si no hay placa, la antepone.
+    """
+    # Busca un patrón tipo ABC-12 | resto
+    match = re.match(r"^([A-Z]{3})-(\d{1,2}) \| (.+)$", nick_actual)
+    if match:
+        prefijo = match.group(1)
+        resto = match.group(3)
+        return f"{prefijo}-{nuevo_numero} | {resto}"
+    # Busca un patrón tipo NVI-12 | resto
+    match = re.match(r"^(NVI)-(\d{1,2}) \| (.+)$", nick_actual)
+    if match:
+        prefijo = match.group(1)
+        resto = match.group(3)
+        return f"{prefijo}-{nuevo_numero} | {resto}"
+    # Si no tiene placa, la antepone
+    return f"NVI-{nuevo_numero} | {nick_actual}"
+
+@bot.command(name="reasignar-placa", description="Reasigna el número de placa de un usuario")
+async def reasignar_placa_prefix(ctx, usuario: discord.Member, nuevo_numero: int):
+    if not ctx.author.guild_permissions.manage_nicknames:
+        await ctx.send("❌ No tienes permisos para gestionar nicknames")
+        return
+    if not ctx.guild.me.guild_permissions.manage_nicknames:
+        await ctx.send("❌ No tengo permisos para gestionar nicknames en este servidor")
+        return
+    if nuevo_numero <= 0 or nuevo_numero > 99:
+        await ctx.send("❌ El número de placa debe estar entre 1 y 99")
+        return
+
+    try:
+        nick_actual = usuario.nick if usuario.nick else usuario.name
+        nuevo_nick = cambiar_numero_placa(nick_actual, nuevo_numero)
+        if len(nuevo_nick) > 32:
+            resto = nuevo_nick.split(" | ", 1)[1]
+            resto_truncado = resto[:32 - len(f"NVI-{nuevo_numero} | ")]
+            nuevo_nick = f"NVI-{nuevo_numero} | {resto_truncado}"
+        await usuario.edit(nick=nuevo_nick)
+        await ctx.send(f"✅ Se ha reasignado la placa a **NVI-{nuevo_numero}** para {usuario.mention}")
+
+        # Mensaje al canal de empleados
+        canal_empleados = discord.utils.get(ctx.guild.channels, name="↪🧥》𝗖hat-𝗘mpleados")
+        if canal_empleados:
+            await canal_empleados.send(
+                f"{usuario.mention} Tu número de placa ha sido reasignado a **NVI-{nuevo_numero}**. "
+                "A partir de ahora deberás usar esta placa en tu nickname en todo momento. "
+                "Si tienes dudas, contacta con un superior."
+            )
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
+@bot.tree.command(name="reasignar-placa", description="Reasigna el número de placa de un usuario")
+@app_commands.describe(
+    usuario="Usuario al que reasignar la placa",
+    nuevo_numero="Nuevo número de placa (1-99)"
+)
+async def reasignar_placa_slash(interaction: discord.Interaction, usuario: discord.Member, nuevo_numero: int):
+    if not interaction.user.guild_permissions.manage_nicknames:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar nicknames",
+            ephemeral=True
+        )
+        return
+    if not interaction.guild.me.guild_permissions.manage_nicknames:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar nicknames en este servidor",
+            ephemeral=True
+        )
+        return
+    if nuevo_numero <= 0 or nuevo_numero > 99:
+        await interaction.response.send_message(
+            "❌ El número de placa debe estar entre 1 y 99",
+            ephemeral=True
+        )
+        return
+
+    try:
+        nick_actual = usuario.nick if usuario.nick else usuario.name
+        nuevo_nick = cambiar_numero_placa(nick_actual, nuevo_numero)
+        if len(nuevo_nick) > 32:
+            resto = nuevo_nick.split(" | ", 1)[1]
+            resto_truncado = resto[:32 - len(f"NVI-{nuevo_numero} | ")]
+            nuevo_nick = f"NVI-{nuevo_numero} | {resto_truncado}"
+        await usuario.edit(nick=nuevo_nick)
+        await interaction.response.send_message(
+            f"✅ Se ha reasignado la placa a **NVI-{nuevo_numero}** para {usuario.mention}",
+            ephemeral=True
+        )
+
+        # Mensaje al canal de empleados
+        canal_empleados = discord.utils.get(interaction.guild.channels, name="↪🧥》𝗖hat-𝗘mpleados")
+        if canal_empleados:
+            await canal_empleados.send(
+                f"{usuario.mention} Tu número de placa ha sido reasignado a **NVI-{nuevo_numero}**. "
+                "A partir de ahora deberás usar esta placa en tu nickname en todo momento. "
+                "Si tienes dudas, contacta con un superior."
+            )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
+
+@bot.tree.command(name="ascenso", description="Asciende a un usuario a un nuevo rango")
+@app_commands.describe(
+    usuario="Usuario al que ascender",
+    rango="Rol al que ascender al usuario",
+    motivo="Motivo del ascenso"
+)
+async def ascenso(interaction: discord.Interaction, usuario: discord.Member, rango: discord.Role, motivo: str):
+    # Verificar permisos
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tienes permisos para gestionar roles",
+            ephemeral=True
+        )
+        return
+    
+    # Verificar que el bot tenga permisos
+    if not interaction.guild.me.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para gestionar roles en este servidor",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Verificar que el bot puede asignar este rol
+        if rango.position >= interaction.guild.me.top_role.position or rango.managed:
+            await interaction.response.send_message(
+                f"❌ No tengo permisos para asignar el rol '{rango.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Verificar si el usuario ya tiene el rol
+        if rango in usuario.roles:
+            await interaction.response.send_message(
+                f"❌ {usuario.mention} ya tiene el rol '{rango.name}'",
+                ephemeral=True
+            )
+            return
+        
+        # Asignar el rol
+        await usuario.add_roles(rango)
+        
+        # Cambiar la placa si el rol está en el diccionario
+        prefijo = PREFIJOS_PLACA.get(rango.name)
+        if prefijo:
+            # Intentar extraer el número de placa del nickname actual
+            numero_placa = "00"
+            if usuario.nick:
+                match = re.match(r"^[A-Z]{3}-?(\d{1,2})\s*\|", usuario.nick)
+                if match:
+                    numero_placa = match.group(1)
+            nuevo_nickname = f"{prefijo}-{numero_placa} | {usuario.name}"
+            if len(nuevo_nickname) > 32:
+                nombre_truncado = usuario.name[:32 - len(f"{prefijo}-{numero_placa} | ")]
+                nuevo_nickname = f"{prefijo}-{numero_placa} | {nombre_truncado}"
+            try:
+                await usuario.edit(nick=nuevo_nickname)
+            except Exception as e:
+                print(f"❌ Error al cambiar la placa: {str(e)}")
+        
+        # Enviar confirmación al usuario que ejecutó el comando
+        await interaction.response.send_message(
+            f"✅ Se ha ascendido a {usuario.mention} al rango **{rango.name}**",
+            ephemeral=True
+        )
+        
+        # Enviar mensaje al canal de ascensos
+        await enviar_mensaje_ascenso(interaction.guild, usuario, rango, motivo, interaction.user)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "❌ No tengo permisos para asignar roles",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
 
 @bot.command(name="ascenso", description="Asciende a un usuario a un nuevo rango")
 async def ascenso_prefix(ctx, usuario: discord.Member, rango: discord.Role, *, motivo: str):
